@@ -1,0 +1,83 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Audio | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="controls-pointer.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#19" class="center NavigationLink">19</a> <a href="game-loop.html" class="right NavigationLink">Next</a></div><main><h1>Audio</h1><p>The WebAudio api brings advanced audio playback to the web.</p><div class="CodeDisplay"><header>src/AudioSystem.ts</header><pre><span class="token keyword">export</span> <span class="token keyword">class</span> AudioIdentifier {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">readonly</span> id: number
+  ) { }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> AudioSystem {
+  <span class="token keyword"><span class="token keyword">private</span></span> context = <span class="token keyword">new</span> AudioContext
+  <span class="token keyword"><span class="token keyword">private</span></span> identifierToBuffer: { [id: number]: AudioBuffer | undefined } = {}
+  <span class="token keyword"><span class="token keyword">private</span></span> nextAudioIdentifierId = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> globalGainNode = this.context.createGain()
+  <span class="token keyword"><span class="token keyword">private</span></span> dest = this.globalGainNode
+
+  <span class="token keyword">constructor</span>() {
+    this.globalGainNode.connect(this.context.destination)
+    this.globalGainNode.gain.value = 0.01
+
+    this.unlockContext()
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> unlockContext() {
+    <span class="token keyword">if</span> (this.context.state == <span class="token string">&quot;suspended&quot;</span>) {
+      <span class="token keyword">const</span> resumeAudioContext = () =&gt; {
+        this.context.resume()
+        window.removeEventListener(<span class="token string">&#39;click&#39;</span>, resumeAudioContext)
+        window.removeEventListener(<span class="token string">&#39;keydown&#39;</span>, resumeAudioContext)
+      }
+      window.addEventListener(<span class="token string">&#39;click&#39;</span>, resumeAudioContext)
+      window.addEventListener(<span class="token string">&#39;keydown&#39;</span>, resumeAudioContext)
+    }
+  }
+
+  load(uri: string | <span class="token boolean">null</span>, onLoad: (id: AudioIdentifier) =&gt; void = () =&gt; { }) {
+    <span class="token keyword">const</span> id = <span class="token keyword">new</span> AudioIdentifier(this.nextAudioIdentifierId++)
+    <span class="token keyword">if</span> (uri == <span class="token boolean">null</span>) <span class="token keyword">return</span> id
+
+    fetch(uri).then(response =&gt; {
+      <span class="token keyword">return</span> response.arrayBuffer()
+    }).then(arrayBuffer =&gt; {
+      <span class="token keyword">return</span> this.context.decodeAudioData(arrayBuffer)
+    }).then(audioBuffer =&gt; {
+      this.identifierToBuffer[id.id] = audioBuffer
+      onLoad(id)
+    }).<span class="token keyword">catch</span>((e) =&gt; {
+      console.log(<span class="token string">&quot;AudioSystem: Failed to load &quot;</span> + uri, e)
+    })
+    <span class="token keyword">return</span> id
+  }
+
+  play(identifier: AudioIdentifier) {
+    <span class="token keyword">const</span> audioBuffer = this.identifierToBuffer[identifier.id]
+    <span class="token keyword">if</span> (!audioBuffer) <span class="token keyword">return</span>
+    <span class="token keyword">const</span> bufferSource = this.context.createBufferSource()
+    bufferSource.buffer = audioBuffer
+    bufferSource.connect(this.dest)
+    bufferSource.start()
+  }
+}</pre></div><p>Webaudio is a graph based audio player the structure we will use is shown in the image where multiple buffer sources connect to a gain node that we use to regulate the audio of everything that is then connected to the audioContext destination that will then be played by the speakers.</p><h2>Audio will not play without user gesture</h2><p>The AudioContext will start in the &quot;suspended&quot; state when it is not created during an user generated event. Therefore we will need to resume it after the user has pressed a key or a mouse button.</p><div class="figurecontainer"><figure class="width90"><img src="audio_graph.svg" alt="Multiple buffer sources connected to the global gain node that is connected to the audioContext.dest which goes to the speaker"><figcaption><div>Audio system graph</div></figcaption></figure></div><h2>Buffer source</h2><p><a href="https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode" target="_blank" rel="noreferrer">AudioBufferSourceNode</a> sources works as objects that play data from <a href="https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer" target="_blank" rel="noreferrer">AudioBuffers</a>. So each time we want to play a sound we will create a new AudioBufferSourceNode and then conenct it to our globalGain node. We use a global gain node so we are able to mute all the sound if we want that feature.</p><div class="CodeDisplay"><header>src/sounds.ts</header><pre><span class="token keyword">const</span> audio = document.createElement(<span class="token string">&quot;audio&quot;</span>)
+<span class="token keyword">const</span> supportedFormats = {
+  webm: audio.canPlayType(<span class="token string">&quot;audio/webm&quot;</span>),
+  ogg: audio.canPlayType(<span class="token string">&quot;audio/ogg&quot;</span>),
+}
+
+<span class="token keyword">function</span> getSupportedFormat(alternatives: ReadonlyArray&lt;string&gt;) {
+  <span class="token keyword">for</span> (<span class="token keyword">const</span> alternative <span class="token keyword">of</span> alternatives) {
+    <span class="token keyword">const</span> suffix = alternative.split(<span class="token string">&quot;.&quot;</span>)[1]
+    <span class="token keyword">if</span> (suffix == <span class="token string">&quot;webm&quot;</span>) <span class="token keyword">if</span> (supportedFormats.webm == <span class="token string">&quot;maybe&quot;</span> || supportedFormats.webm == <span class="token string">&quot;probably&quot;</span>) <span class="token keyword">return</span> alternative
+    <span class="token keyword">if</span> (suffix == <span class="token string">&quot;ogg&quot;</span>) <span class="token keyword">if</span> (supportedFormats.webm == <span class="token string">&quot;maybe&quot;</span> || supportedFormats.webm == <span class="token string">&quot;probably&quot;</span>) <span class="token keyword">return</span> alternative
+  }
+  <span class="token keyword">return</span> <span class="token boolean">null</span>
+}
+
+<span class="token keyword">export</span> <span class="token keyword">const</span> playerJump = getSupportedFormat([require(<span class="token string">&quot;./assets/player_jump.webm&quot;</span>), require(<span class="token string">&quot;./assets/player_jump.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> playerLand = getSupportedFormat([require(<span class="token string">&quot;./assets/crate_pickup.webm&quot;</span>), require(<span class="token string">&quot;./assets/crate_pickup.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> playerDie = getSupportedFormat([require(<span class="token string">&quot;./assets/crate_pickup.webm&quot;</span>), require(<span class="token string">&quot;./assets/crate_pickup.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> playerHitWall = getSupportedFormat([require(<span class="token string">&quot;./assets/crate_pickup.webm&quot;</span>), require(<span class="token string">&quot;./assets/crate_pickup.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> useKnife = getSupportedFormat([require(<span class="token string">&quot;./assets/crate_pickup.webm&quot;</span>), require(<span class="token string">&quot;./assets/crate_pickup.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> usePistol = getSupportedFormat([require(<span class="token string">&quot;./assets/pistol.webm&quot;</span>), require(<span class="token string">&quot;./assets/pistol.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> useMachineGun = getSupportedFormat([require(<span class="token string">&quot;./assets/machine_gun.webm&quot;</span>), require(<span class="token string">&quot;./assets/machine_gun.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> useHandCannon = getSupportedFormat([require(<span class="token string">&quot;./assets/hand_cannon.webm&quot;</span>), require(<span class="token string">&quot;./assets/hand_cannon.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> theme = getSupportedFormat([require(<span class="token string">&quot;./assets/crate_pickup.webm&quot;</span>), require(<span class="token string">&quot;./assets/crate_pickup.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> basketPickup = getSupportedFormat([require(<span class="token string">&quot;./assets/crate_pickup.webm&quot;</span>), require(<span class="token string">&quot;./assets/crate_pickup.ogg&quot;</span>)])
+<span class="token keyword">export</span> <span class="token keyword">const</span> killEnemy = getSupportedFormat([require(<span class="token string">&quot;./assets/bullet_hit.webm&quot;</span>), require(<span class="token string">&quot;./assets/bullet_hit.ogg&quot;</span>)])</pre></div><h2>Links</h2><ul><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API" target="_blank" rel="noreferrer">Web Audio API - Web APIs | MDN</a></li><li><a href="https://www.w3.org/TR/webaudio/" target="_blank" rel="noreferrer">Web Audio API</a></li><li><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Supported_media_formats#Browser_compatibility" target="_blank" rel="noreferrer">Media formats for HTML audio and video - HTML: Hypertext Markup Language | MDN</a></li><ul></ul></ul></main><div class="bar"><a href="controls-pointer.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#19" class="center NavigationLink">19</a> <a href="game-loop.html" class="right NavigationLink">Next</a></div></body></html>

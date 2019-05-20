@@ -1,0 +1,380 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Weapons | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="screen-shake.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#31" class="center NavigationLink">31</a> <a href="player.html" class="right NavigationLink">Next</a></div><main><h1>Weapons</h1><div class="CodeDisplay"><header>src/weapons.ts</header><pre><span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">interface</span> Weapon {
+  update(delta: number): void
+  use(): void
+  draw(): void
+
+  direction: number
+  position: Vector2
+}</pre></div><h2>Knife</h2><img src="knife.png" class="SpriteImage"><p>The <i>Knife</i> has short range.</p><div class="CodeDisplay"><header>src/Knife.ts</header><pre><span class="token keyword">import</span> { Weapon } <span class="token keyword">from</span> <span class="token string">&quot;./weapons&quot;</span>
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { Entity } <span class="token keyword">from</span> <span class="token string">&quot;./entity&quot;</span>
+<span class="token keyword">import</span> { tileSize } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { doRectanglesOverlap } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>
+<span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { AnimationPlayer } <span class="token keyword">from</span> <span class="token string">&quot;./AnimationPlayer&quot;</span>;
+<span class="token keyword">import</span> { Animation, AnimationMode } <span class="token keyword">from</span> <span class="token string">&quot;./Animation&quot;</span>;
+<span class="token keyword">import</span> { Frame } <span class="token keyword">from</span> <span class="token string">&quot;./Frame&quot;</span>;
+<span class="token keyword">import</span> { tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Knife <span class="token keyword">implements</span> Weapon {
+
+  position = <span class="token keyword">new</span> Vector2
+  reloadTime = 0
+  direction = -1
+  timeSinceLastUse = 10
+  animationPlayer = <span class="token keyword">new</span> AnimationPlayer(animations.useKnife)
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> enemies: Entity[]
+  ) { }
+
+
+  use() {
+    this.timeSinceLastUse = 0
+    <span class="token keyword">if</span> (this.reloadTime &lt;= 0) {
+      this.reloadTime = 0.0
+      <span class="token keyword">for</span> (<span class="token keyword">const</span> entity <span class="token keyword">of</span> this.enemies) {
+        <span class="token keyword">const</span> enemyRectangle = entity.getBoundingRectangle()
+        <span class="token keyword">const</span> rectangle = tRectangle.get(this.position.x, this.position.y, tileSize, tileSize)
+        <span class="token keyword">if</span> (enemyRectangle) {
+          <span class="token keyword">if</span> (doRectanglesOverlap(rectangle, enemyRectangle)) {
+            entity.getHitBy(this.position, 5)
+          }
+        }
+      }
+    }
+  }
+
+  draw() {
+    <span class="token keyword">const</span> using = this.timeSinceLastUse &lt; 0.05
+    <span class="token keyword">let</span> sprite = TextureAtlas.knife
+    <span class="token keyword">if</span> (using) sprite = this.animationPlayer.currentSprite()
+    this.spriteRenderer.sprite(this.position.x, this.position.y, sprite, this.direction &lt; 0)
+  }
+
+  update(delta: number) {
+    this.timeSinceLastUse += delta
+    this.reloadTime -= delta
+    this.animationPlayer.update(delta)
+  }
+
+}
+
+<span class="token keyword">const</span> animations = {
+  useKnife: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.knifeUse0),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.knifeUse1)
+    ])
+}</pre></div><h2>Pistol</h2><img src="pistol.png" class="SpriteImage"><p>The <i>Pistol</i> shoots quite fast and the bullets do normal damage</p><div class="CodeDisplay"><header>src/Pistol.ts</header><pre><span class="token keyword">import</span> { Weapon } <span class="token keyword">from</span> <span class="token string">&quot;./weapons&quot;</span>
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { BulletSystem } <span class="token keyword">from</span> <span class="token string">&quot;./BulletSystem&quot;</span>
+<span class="token keyword">import</span> { Entity } <span class="token keyword">from</span> <span class="token string">&quot;./entity&quot;</span>
+<span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { worldWidth } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { doRectanglesOverlap } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>
+<span class="token keyword">import</span> { Bullet } <span class="token keyword">from</span> <span class="token string">&quot;./Bullet&quot;</span>
+<span class="token keyword">import</span> { AudioSystem, AudioIdentifier } <span class="token keyword">from</span> <span class="token string">&quot;./AudioSystem&quot;</span>;
+<span class="token keyword">import</span> { usePistol } <span class="token keyword">from</span> <span class="token string">&quot;./sounds&quot;</span>;
+<span class="token keyword">import</span> { tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Pistol <span class="token keyword">implements</span> Weapon {
+
+  position = <span class="token keyword">new</span> Vector2
+  reloadTime = 0
+  direction = -1
+  <span class="token keyword"><span class="token keyword">private</span></span> timeSinceLastUse = Infinity
+
+  <span class="token keyword"><span class="token keyword">private</span></span> sound: AudioIdentifier
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> bulletSystem: BulletSystem,
+    <span class="token keyword"><span class="token keyword">private</span></span> enemies: Entity[],
+    <span class="token keyword"><span class="token keyword">private</span></span> audioSystem: AudioSystem
+  ) {
+    this.update(0)
+    this.sound = this.audioSystem.load(usePistol)
+  }
+
+  use() {
+    <span class="token keyword">if</span> (this.reloadTime &lt;= 0) {
+      this.audioSystem.play(this.sound)
+      this.reloadTime = 0.30
+      <span class="token keyword">const</span> bullet = <span class="token keyword">new</span> PistolBullet(this.spriteRenderer, this.bulletSystem, this.enemies)
+      bullet.position.x = this.position.x
+      bullet.position.y = this.position.y + 6
+      bullet.velocity.x = 260 * this.direction
+      this.bulletSystem.add(bullet)
+      this.timeSinceLastUse = 0
+    }
+  }
+
+  draw() {
+    <span class="token keyword">if</span> (this.timeSinceLastUse &lt; 0.1) {
+      <span class="token keyword">let</span> x = this.position.x
+      <span class="token keyword">if</span> (this.direction &gt; 0) x += 13
+      this.spriteRenderer.sprite(x, this.position.y + 5, TextureAtlas.flare0, this.direction &lt; 0)
+    }
+    this.spriteRenderer.sprite(this.position.x, this.position.y, TextureAtlas.pistol, this.direction &lt; 0)
+  }
+
+  update(delta: number) {
+    this.timeSinceLastUse += delta
+    this.reloadTime -= delta
+  }
+}
+
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> PistolBullet <span class="token keyword">implements</span> Bullet {
+
+  position = <span class="token keyword">new</span> Vector2
+  velocity = <span class="token keyword">new</span> Vector2
+  sprite = TextureAtlas.pistolBullet
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> bulletSystem: BulletSystem,
+    <span class="token keyword"><span class="token keyword">private</span></span> enemies: Entity[]
+  ) { }
+
+  update(delta: number): void {
+    this.position.x += this.velocity.x * delta
+    this.position.y += this.velocity.y * delta
+
+    <span class="token keyword">if</span> (this.position.x + this.sprite.width &lt; 0 || this.position.x &gt; worldWidth) {
+      this.bulletSystem.remove(this)
+      <span class="token keyword">return</span>
+    }
+    <span class="token keyword">for</span> (<span class="token keyword">const</span> entity <span class="token keyword">of</span> this.enemies) {
+      <span class="token keyword">const</span> rectangle = entity.getBoundingRectangle()
+      <span class="token keyword">if</span> (rectangle == <span class="token boolean">null</span>) <span class="token keyword">continue</span>
+      <span class="token keyword">const</span> bulletRectangle = tRectangle.get(this.position.x, this.position.y, this.sprite.width, this.sprite.height)
+
+      <span class="token keyword">if</span> (doRectanglesOverlap(rectangle, bulletRectangle)) {
+        this.bulletSystem.remove(this)
+        entity.getHitBy(this.position, 5)
+        <span class="token keyword">return</span>
+      }
+    }
+  }
+
+  draw(): void {
+    this.spriteRenderer.sprite(this.position.x, this.position.y, this.sprite, this.velocity.x &lt; 0)
+  }
+}</pre></div><h2>Machine gun</h2><img src="machineGun.png" class="SpriteImage"><p>The <i>Machine gun</i> shoots really fast but the bullets do low damage.</p><div class="CodeDisplay"><header>src/MachineGun.ts</header><pre><span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { BulletSystem } <span class="token keyword">from</span> <span class="token string">&quot;./BulletSystem&quot;</span>
+<span class="token keyword">import</span> { ScreenShaker } <span class="token keyword">from</span> <span class="token string">&quot;./ScreenShake&quot;</span>
+<span class="token keyword">import</span> { Entity } <span class="token keyword">from</span> <span class="token string">&quot;./entity&quot;</span>
+<span class="token keyword">import</span> { Bullet } <span class="token keyword">from</span> <span class="token string">&quot;./Bullet&quot;</span>
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { Weapon } <span class="token keyword">from</span> <span class="token string">&quot;./weapons&quot;</span>
+<span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { worldWidth } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { doRectanglesOverlap } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>
+<span class="token keyword">import</span> { AudioIdentifier, AudioSystem } <span class="token keyword">from</span> <span class="token string">&quot;./AudioSystem&quot;</span>;
+<span class="token keyword">import</span> { useMachineGun } <span class="token keyword">from</span> <span class="token string">&quot;./sounds&quot;</span>;
+<span class="token keyword">import</span> { tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> MachineGun <span class="token keyword">implements</span> Weapon {
+
+  position = <span class="token keyword">new</span> Vector2
+  reloadTime = 0
+  direction = -1
+  <span class="token keyword"><span class="token keyword">private</span></span> timeSinceLastUse = Infinity
+
+  <span class="token keyword"><span class="token keyword">private</span></span> shootSound: AudioIdentifier
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> bulletSystem: BulletSystem,
+    <span class="token keyword"><span class="token keyword">private</span></span> screenShaker: ScreenShaker,
+    <span class="token keyword"><span class="token keyword">private</span></span> enemies: Entity[],
+    <span class="token keyword"><span class="token keyword">private</span></span> audioSystem: AudioSystem
+  ) {
+    this.shootSound = this.audioSystem.load(useMachineGun)
+    this.update(0)
+  }
+
+  use() {
+    <span class="token keyword">if</span> (this.reloadTime &lt;= 0) {
+      this.reloadTime = 0.08
+
+      this.audioSystem.play(this.shootSound)
+      <span class="token keyword">const</span> bullet = <span class="token keyword">new</span> MachineGunBullet(this.spriteRenderer, this.bulletSystem, this.enemies)
+      bullet.position.x = this.position.x
+      bullet.position.y = this.position.y + 6
+
+      bullet.velocity.x = 260 * this.direction
+      bullet.velocity.y = (Math.random() * 140) - 70
+      this.bulletSystem.add(bullet)
+      <span class="token keyword">if</span> (this.screenShaker.getTrauma() &lt; 0.3) {
+        this.screenShaker.addTrauma(0.3)
+      }
+      this.screenShaker.addTrauma(0.1)
+      this.timeSinceLastUse = 0
+    }
+  }
+
+  draw() {
+
+    <span class="token keyword">if</span> (this.timeSinceLastUse &lt; 0.045) {
+      <span class="token keyword">let</span> x = this.position.x
+      <span class="token keyword">if</span> (this.direction &gt; 0) x += 13
+      this.spriteRenderer.sprite(x, this.position.y + 4, TextureAtlas.flare1, this.direction &lt; 0)
+    }
+
+    this.spriteRenderer.sprite(this.position.x, this.position.y, TextureAtlas.machineGun, this.direction &lt; 0)
+  }
+
+  update(delta: number) {
+    this.timeSinceLastUse += delta
+    this.reloadTime -= delta
+  }
+}
+
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> MachineGunBullet <span class="token keyword">implements</span> Bullet {
+  sprite = TextureAtlas.machineGunBullet
+  position = <span class="token keyword">new</span> Vector2
+  velocity = <span class="token keyword">new</span> Vector2
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> bulletSystem: BulletSystem,
+    <span class="token keyword"><span class="token keyword">private</span></span> enemies: Entity[]
+  ) { }
+
+  update(delta: number) {
+    this.position.x += this.velocity.x * delta
+    this.position.y += this.velocity.y * delta
+
+    <span class="token keyword">if</span> (this.position.x + this.sprite.width &lt; 0 || this.position.x &gt; worldWidth) {
+      this.bulletSystem.remove(this)
+      <span class="token keyword">return</span>
+    }
+
+    <span class="token keyword">for</span> (<span class="token keyword">const</span> entity <span class="token keyword">of</span> this.enemies) {
+      <span class="token keyword">const</span> rectangle = entity.getBoundingRectangle()
+      <span class="token keyword">if</span> (rectangle == <span class="token boolean">null</span>) <span class="token keyword">continue</span>
+
+      <span class="token keyword">const</span> bulletRectangle = tRectangle.get(this.position.x, this.position.y, this.sprite.width, this.sprite.height)
+      <span class="token keyword">if</span> (doRectanglesOverlap(rectangle, bulletRectangle)) {
+        entity.getHitBy(this.position, 5)
+        this.bulletSystem.remove(this)
+        <span class="token keyword">return</span>
+      }
+    }
+  }
+  draw() {
+    this.spriteRenderer.sprite(this.position.x, this.position.y, this.sprite)
+  }
+}</pre></div><h2>Hand cannon</h2><img src="handCannon.png" class="SpriteImage"><p>The <i>Hand cannon</i> shoots slow but the bullets do penetrates enemies.</p><div class="CodeDisplay"><header>src/HandCannon.ts</header><pre><span class="token keyword">import</span> { Weapon } <span class="token keyword">from</span> <span class="token string">&quot;./weapons&quot;</span>
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { AudioIdentifier, AudioSystem } <span class="token keyword">from</span> <span class="token string">&quot;./AudioSystem&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { BulletSystem } <span class="token keyword">from</span> <span class="token string">&quot;./BulletSystem&quot;</span>
+<span class="token keyword">import</span> { ScreenShaker } <span class="token keyword">from</span> <span class="token string">&quot;./ScreenShake&quot;</span>
+<span class="token keyword">import</span> { Entity } <span class="token keyword">from</span> <span class="token string">&quot;./entity&quot;</span>
+<span class="token keyword">import</span> { useHandCannon } <span class="token keyword">from</span> <span class="token string">&quot;./sounds&quot;</span>
+<span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { Bullet } <span class="token keyword">from</span> <span class="token string">&quot;./Bullet&quot;</span>
+<span class="token keyword">import</span> { worldWidth } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { doRectanglesOverlap } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>
+<span class="token keyword">import</span> { tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> HandCannon <span class="token keyword">implements</span> Weapon {
+  position = <span class="token keyword">new</span> Vector2
+  reloadTime = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> sound: AudioIdentifier
+  direction = -1
+
+  <span class="token keyword"><span class="token keyword">private</span></span> timeSinceLastUse = Infinity
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> bulletSystem: BulletSystem,
+    <span class="token keyword"><span class="token keyword">private</span></span> screenShaker: ScreenShaker,
+    <span class="token keyword"><span class="token keyword">private</span></span> enemies: Entity[],
+    <span class="token keyword"><span class="token keyword">private</span></span> audioSystem: AudioSystem
+  ) {
+    this.update(0)
+    this.sound = this.audioSystem.load(useHandCannon)
+  }
+
+  use() {
+    <span class="token keyword">if</span> (this.reloadTime &lt;= 0) {
+      this.reloadTime = 0.8
+
+      <span class="token keyword">const</span> bullet = <span class="token keyword">new</span> HandCannonBullet(this.spriteRenderer, this.bulletSystem, this.enemies)
+      bullet.position.x = this.position.x
+      bullet.position.y = this.position.y + 3
+      bullet.velocity.x = 260 * this.direction
+      this.bulletSystem.add(bullet)
+      <span class="token keyword">if</span> (this.screenShaker.getTrauma() &lt; 0.5) {
+        this.screenShaker.addTrauma(0.5)
+      }
+      this.screenShaker.addTrauma(0.2)
+      this.audioSystem.play(this.sound)
+      this.timeSinceLastUse = 0
+    }
+  }
+
+  draw() {
+    <span class="token keyword">if</span> (this.timeSinceLastUse &lt; 0.15) {
+      <span class="token keyword">let</span> x = this.position.x - 2
+      <span class="token keyword">if</span> (this.direction &gt; 0) x += 17
+      this.spriteRenderer.sprite(x, this.position.y + 3, TextureAtlas.flare2, this.direction &lt; 0)
+    }
+
+    this.spriteRenderer.sprite(this.position.x, this.position.y, TextureAtlas.handCannon, this.direction &lt; 0)
+  }
+  update(delta: number) {
+    this.timeSinceLastUse += delta
+    this.reloadTime -= delta
+  }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> HandCannonBullet <span class="token keyword">implements</span> Bullet {
+  sprite = TextureAtlas.handCannonBullet
+  position = <span class="token keyword">new</span> Vector2
+  velocity = <span class="token keyword">new</span> Vector2
+  entitiesHit: Entity[] = []
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> bulletSystem: BulletSystem,
+    <span class="token keyword"><span class="token keyword">private</span></span> enemies: Entity[]
+  ) { }
+
+  update(delta: number) {
+    this.position.x += this.velocity.x * delta
+    this.position.y += this.velocity.y * delta
+
+    <span class="token keyword">if</span> (this.position.x + this.sprite.width &lt; 0 || this.position.x &gt; worldWidth) {
+      this.bulletSystem.remove(this)
+      <span class="token keyword">return</span>
+    }
+
+    <span class="token keyword">for</span> (<span class="token keyword">const</span> entity <span class="token keyword">of</span> this.enemies) {
+      <span class="token keyword">const</span> rectangle = entity.getBoundingRectangle()
+      <span class="token keyword">if</span> (rectangle == <span class="token boolean">null</span>) <span class="token keyword">continue</span>
+      <span class="token keyword">if</span> (this.entitiesHit.includes(entity)) <span class="token keyword">continue</span>
+
+      <span class="token keyword">const</span> bulletRectangle = tRectangle.get(this.position.x, this.position.y, this.sprite.width, this.sprite.height)
+      <span class="token keyword">if</span> (doRectanglesOverlap(rectangle, bulletRectangle)) {
+        entity.getHitBy(this.position, 5)
+        this.entitiesHit.push(entity)
+      }
+    }
+  }
+
+  draw(): void {
+    this.spriteRenderer.sprite(this.position.x, this.position.y, this.sprite, this.velocity.x &lt; 0)
+  }
+}</pre></div></main><div class="bar"><a href="screen-shake.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#31" class="center NavigationLink">31</a> <a href="player.html" class="right NavigationLink">Next</a></div></body></html>

@@ -1,0 +1,361 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Enemies | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="player.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#33" class="center NavigationLink">33</a> <a href="background.html" class="right NavigationLink">Next</a></div><main><h1>Enemies</h1><div class="CodeDisplay"><header>src/enemy.ts</header><pre><span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { worldHeight } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> drawWrappedAroundBottom(x: number, y: number, sprite: Rectangle, renderer: SpriteRenderer, mirrored: boolean = <span class="token boolean">false</span>) {
+  renderer.sprite(x, y, sprite, mirrored)
+  <span class="token keyword">if</span> (y + sprite.height &gt; worldHeight) {
+    <span class="token keyword">const</span> overflow = y + sprite.height - worldHeight
+    renderer.sprite(x, -sprite.height + overflow, sprite, mirrored)
+  }
+}
+</pre></div><h2>Blueberry</h2><img src="blueberry.png" alt="A blueberry" class="SpriteImage"><p>The <i>Blueberry</i> is a quick small enemy with low health.</p><div class="CodeDisplay"><header>src/Blueberry.ts</header><pre><span class="token keyword">import</span> { Entity } <span class="token keyword">from</span> <span class="token string">&quot;./entity&quot;</span>
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { removeEnemy, addEnemy } <span class="token keyword">from</span> <span class="token string">&quot;./main&quot;</span>
+<span class="token keyword">import</span> {  worldHeight } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { drawWrappedAroundBottom } <span class="token keyword">from</span> <span class="token string">&quot;./enemy&quot;</span>
+<span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { FlyingPart } <span class="token keyword">from</span> <span class="token string">&quot;./FlyingPart&quot;</span>
+<span class="token keyword">import</span> { AnimationPlayer, switchAnimation } <span class="token keyword">from</span> <span class="token string">&quot;./AnimationPlayer&quot;</span>;
+<span class="token keyword">import</span> { AnimationMode, Animation } <span class="token keyword">from</span> <span class="token string">&quot;./Animation&quot;</span>;
+<span class="token keyword">import</span> { Frame } <span class="token keyword">from</span> <span class="token string">&quot;./Frame&quot;</span>;
+<span class="token keyword">import</span> { tVector2, tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+<span class="token keyword">import</span> { Level } <span class="token keyword">from</span> <span class="token string">&quot;./Level&quot;</span>;
+<span class="token keyword">import</span> { resolveCollision } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Blueberry <span class="token keyword">implements</span> Entity {
+
+  health = 1
+  position = <span class="token keyword">new</span> Vector2
+  <span class="token keyword"><span class="token keyword">private</span></span> velocity = <span class="token keyword">new</span> Vector2
+  direction = -1
+
+  <span class="token keyword"><span class="token keyword">private</span></span> run = animations.run
+  <span class="token keyword"><span class="token keyword">private</span></span> fall = animations.fall
+
+  <span class="token keyword"><span class="token keyword">private</span></span> animationPlayer = <span class="token keyword">new</span> AnimationPlayer(this.run)
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> level: Level
+  ) { }
+
+  getHitBy(position: Vector2, damage: number) {
+    position
+    this.health -= damage
+    <span class="token keyword">if</span> (this.health &gt; 0) <span class="token keyword">return</span>
+
+    removeEnemy(this)
+    <span class="token keyword">const</span> mirrored = this.direction &gt; 0
+
+    <span class="token keyword">const</span> parts = [
+      <span class="token keyword">new</span> FlyingPart(this.spriteRenderer, TextureAtlas.blueberryPart0, mirrored),
+      <span class="token keyword">new</span> FlyingPart(this.spriteRenderer, TextureAtlas.blueberryPart1, mirrored)
+    ]
+
+    <span class="token keyword">for</span> (<span class="token keyword">const</span> part <span class="token keyword">of</span> parts) {
+      part.position.x = this.position.x
+      part.position.y = this.position.y
+      addEnemy(part)
+    }
+  }
+
+  getBoundingRectangle() {
+    <span class="token keyword">const</span> frame = this.animationPlayer.currentSprite()
+    <span class="token keyword">return</span> tRectangle.get(this.position.x + 5, this.position.y + 5, frame.width - 8, frame.height - 9)
+  }
+
+  update(delta: number) {
+    this.animationPlayer.update(delta)
+
+    <span class="token keyword">const</span> oldPosition = tVector2.get(this.position.x, this.position.y)
+    this.velocity.y += 550 * delta
+    this.position.y += this.velocity.y * delta
+    this.position.x += this.velocity.x * delta
+
+    <span class="token keyword">const</span> width = this.animationPlayer.currentSprite().width
+    <span class="token keyword">const</span> height = this.animationPlayer.currentSprite().height
+
+    <span class="token keyword">for</span> (<span class="token keyword">let</span> line <span class="token keyword">of</span> this.level.collisionLines) {
+      <span class="token keyword">const</span> newPosition = resolveCollision(oldPosition, this.position, width, height, line)
+      <span class="token keyword">if</span> (newPosition) {
+        <span class="token keyword">if</span> (newPosition.y &lt; this.position.y) {
+          this.velocity.y = 0
+        }
+        <span class="token keyword">if</span> (newPosition.x &lt; this.position.x) {
+          this.velocity.x = 0
+          this.direction = -1
+        } <span class="token keyword">else</span> <span class="token keyword">if</span> (newPosition.x &gt; this.position.x) {
+          this.velocity.x = 0
+          this.direction = 1
+        }
+        this.position.set(newPosition.x, newPosition.y)
+      }
+    }
+    
+    <span class="token keyword">if</span> (this.velocity.y == 0) {
+      this.velocity.x += 2 * this.direction
+    }
+    <span class="token keyword">if</span> (this.position.y &gt; worldHeight) {
+      this.position.y = 0
+    }
+
+    <span class="token keyword">if</span> (this.velocity.y == 0) switchAnimation(this.run, this.animationPlayer)
+    <span class="token keyword">if</span> (this.velocity.y &gt; 0) switchAnimation(this.fall, this.animationPlayer)
+
+  }
+
+  draw() {
+    <span class="token keyword">const</span> sprite = this.animationPlayer.currentSprite()
+    drawWrappedAroundBottom(this.position.x, this.position.y, sprite, this.spriteRenderer, this.direction &gt; 0)
+  }
+}
+
+
+<span class="token keyword">const</span> animations = {
+  run: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.blueberryRun0),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.blueberryRun1),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.blueberryRun2),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.blueberryRun3),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.blueberryRun4),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.blueberryRun5),
+    ]),
+  fall: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.blueberryRun0),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.blueberryRun1)
+    ]),
+}
+</pre></div><h2>Lemon</h2><img src="lemon.png" alt="A lemon" class="SpriteImage"><p>The <i>Lemon</i> is a bit slower than the Blueberry however it has more health.</p><div class="CodeDisplay"><header>src/Lemon.ts</header><pre><span class="token keyword">import</span> { Entity } <span class="token keyword">from</span> <span class="token string">&quot;./entity&quot;</span>
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { removeEnemy, addEnemy } <span class="token keyword">from</span> <span class="token string">&quot;./main&quot;</span>
+<span class="token keyword">import</span> {  worldHeight } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { drawWrappedAroundBottom } <span class="token keyword">from</span> <span class="token string">&quot;./enemy&quot;</span>
+<span class="token keyword">import</span> { FlyingPart } <span class="token keyword">from</span> <span class="token string">&quot;./FlyingPart&quot;</span>
+<span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { AnimationPlayer } <span class="token keyword">from</span> <span class="token string">&quot;./AnimationPlayer&quot;</span>;
+<span class="token keyword">import</span> { Animation, AnimationMode } <span class="token keyword">from</span> <span class="token string">&quot;./Animation&quot;</span>;
+<span class="token keyword">import</span> { Frame } <span class="token keyword">from</span> <span class="token string">&quot;./Frame&quot;</span>;
+<span class="token keyword">import</span> {  tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+<span class="token keyword">import</span> { Level } <span class="token keyword">from</span> <span class="token string">&quot;./Level&quot;</span>;
+<span class="token keyword">import</span> { resolveCollision } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>;
+
+// TODO there seems like the parts jump when they are first created
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Lemon <span class="token keyword">implements</span> Entity {
+  health = 5
+
+  <span class="token keyword"><span class="token keyword">private</span></span> run = animations.run
+  <span class="token keyword"><span class="token keyword">private</span></span> animationPlayer = <span class="token keyword">new</span> AnimationPlayer(this.run)
+  position = <span class="token keyword">new</span> Vector2
+  <span class="token keyword"><span class="token keyword">private</span></span> velocity = <span class="token keyword">new</span> Vector2
+  direction = -1
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> level: Level
+  ) { }
+
+  getHitBy(position: Vector2, damage: number) {
+    position
+    this.health -= damage
+    <span class="token keyword">if</span> (this.health &gt; 0) <span class="token keyword">return</span>
+
+    removeEnemy(this)
+
+    <span class="token keyword">const</span> mirrored = this.direction &gt; 0
+    <span class="token keyword">const</span> parts = [
+      <span class="token keyword">new</span> FlyingPart(this.spriteRenderer, TextureAtlas.lemonPart0, mirrored),
+      <span class="token keyword">new</span> FlyingPart(this.spriteRenderer, TextureAtlas.lemonPart1, mirrored)
+    ]
+
+    <span class="token keyword">for</span> (<span class="token keyword">const</span> part <span class="token keyword">of</span> parts) {
+      part.position.x = this.position.x
+      part.position.y = this.position.y
+      addEnemy(part)
+    }
+  }
+
+  getBoundingRectangle() {
+    <span class="token keyword">const</span> frame = this.animationPlayer.currentSprite()
+    <span class="token keyword">return</span> tRectangle.get(this.position.x + 4, this.position.y + 3, frame.width - 4, frame.height - 7)
+  }
+
+  update(delta: number) {
+    this.animationPlayer.update(delta)
+
+    <span class="token keyword">const</span> oldPosition = <span class="token keyword">new</span> Vector2(this.position.x, this.position.y)
+    this.velocity.y += 550 * delta
+    this.position.y += this.velocity.y * delta
+    this.position.x += this.velocity.x * delta
+
+    <span class="token keyword">const</span> width = this.animationPlayer.currentSprite().width
+    <span class="token keyword">const</span> height = this.animationPlayer.currentSprite().height
+
+    <span class="token keyword">for</span> (<span class="token keyword">let</span> line <span class="token keyword">of</span> this.level.collisionLines) {
+      <span class="token keyword">const</span> newPosition = resolveCollision(oldPosition, this.position, width, height, line)
+      <span class="token keyword">if</span> (newPosition) {
+        <span class="token keyword">if</span> (newPosition.y &lt; this.position.y) {
+          this.velocity.y = 0
+        }
+        <span class="token keyword">if</span> (newPosition.x &lt; this.position.x) {
+          this.velocity.x = 0
+          this.direction = -1
+        } <span class="token keyword">else</span> <span class="token keyword">if</span> (newPosition.x &gt; this.position.x) {
+          this.velocity.x = 0
+          this.direction = 1
+        }
+        this.position.set(newPosition.x, newPosition.y)
+      }
+    }
+
+    <span class="token keyword">if</span> (this.velocity.y == 0) {
+      this.velocity.x += 1.5 * this.direction
+    }
+    <span class="token keyword">if</span> (this.position.y &gt; worldHeight) {
+      this.position.y = 0
+    }
+
+    //<span class="token keyword">if</span> (this.velocity.y == 0) switchAndResetIfNewAnimation(Animations.blueBerry.run, this.animationPlayer)
+    //<span class="token keyword">if</span> (this.velocity.y &gt; 0) switchAndResetIfNewAnimation(Animations.blueBerry.fall, this.animationPlayer)
+
+  }
+
+  draw() {
+    <span class="token keyword">const</span> sprite = this.animationPlayer.currentSprite()
+    drawWrappedAroundBottom(this.position.x, this.position.y, sprite, this.spriteRenderer, this.direction &gt; 0)
+  }
+}
+
+<span class="token keyword">const</span> animations = {
+  run: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.lemonRun0),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.lemonRun1),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.lemonRun2),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.lemonRun3),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.lemonRun4),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.lemonRun5),
+    ]),
+  fall: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.lemonFall0),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.lemonFall1)
+    ]),
+}</pre></div><h2>Water melon</h2><img src="melon.png" alt="A water melon" class="SpriteImage"><p>The <i>Water melon</i> has a lot of health however it is very slow.</p><div class="CodeDisplay"><header>src/WaterMelon.ts</header><pre><span class="token keyword">import</span> { Entity } <span class="token keyword">from</span> <span class="token string">&quot;./entity&quot;</span>
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { removeEnemy, addEnemy } <span class="token keyword">from</span> <span class="token string">&quot;./main&quot;</span>
+<span class="token keyword">import</span> { worldHeight } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { drawWrappedAroundBottom } <span class="token keyword">from</span> <span class="token string">&quot;./enemy&quot;</span>
+<span class="token keyword">import</span> { FlyingPart } <span class="token keyword">from</span> <span class="token string">&quot;./FlyingPart&quot;</span>
+<span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { AnimationPlayer } <span class="token keyword">from</span> <span class="token string">&quot;./AnimationPlayer&quot;</span>;
+<span class="token keyword">import</span> { Animation, AnimationMode } <span class="token keyword">from</span> <span class="token string">&quot;./Animation&quot;</span>;
+<span class="token keyword">import</span> { Frame } <span class="token keyword">from</span> <span class="token string">&quot;./Frame&quot;</span>;
+<span class="token keyword">import</span> { tRectangle, tVector2 } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+<span class="token keyword">import</span> { Level } <span class="token keyword">from</span> <span class="token string">&quot;./Level&quot;</span>;
+<span class="token keyword">import</span> { resolveCollision } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> WaterMelon <span class="token keyword">implements</span> Entity {
+  <span class="token keyword"><span class="token keyword">private</span></span> health = 5
+  <span class="token keyword"><span class="token keyword">private</span></span> animationPlayer = <span class="token keyword">new</span> AnimationPlayer(animations.run)
+  <span class="token keyword"><span class="token keyword">private</span></span> velocity = <span class="token keyword">new</span> Vector2
+  position = <span class="token keyword">new</span> Vector2
+  direction = -1
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> spriteRenderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> level: Level
+  ) { }
+
+
+  getHitBy(position: Vector2, damage: number) {
+    position
+    this.health -= damage
+    <span class="token keyword">if</span> (this.health &gt; 0) <span class="token keyword">return</span>
+
+    removeEnemy(this)
+    <span class="token keyword">const</span> mirrored = this.direction &gt; 0
+
+    <span class="token keyword">const</span> parts = [
+      <span class="token keyword">new</span> FlyingPart(this.spriteRenderer, TextureAtlas.melonPart0, mirrored),
+      <span class="token keyword">new</span> FlyingPart(this.spriteRenderer, TextureAtlas.melonPart1, mirrored),
+      <span class="token keyword">new</span> FlyingPart(this.spriteRenderer, TextureAtlas.melonPart2, mirrored)
+    ]
+
+    <span class="token keyword">for</span> (<span class="token keyword">const</span> part <span class="token keyword">of</span> parts) {
+      part.position.set(this.position.x, this.position.y)
+      addEnemy(part)
+    }
+  }
+
+  update(delta: number) {
+    this.animationPlayer.update(delta)
+
+    <span class="token keyword">const</span> oldPosition = tVector2.get(this.position.x, this.position.y)
+    this.velocity.y += 550 * delta
+    this.position.y += this.velocity.y * delta
+    this.position.x += this.velocity.x * delta
+
+    <span class="token keyword">const</span> width = this.animationPlayer.currentSprite().width
+    <span class="token keyword">const</span> height = this.animationPlayer.currentSprite().height
+
+    <span class="token keyword">for</span> (<span class="token keyword">let</span> line <span class="token keyword">of</span> this.level.collisionLines) {
+      <span class="token keyword">const</span> newPosition = resolveCollision(oldPosition, this.position, width, height, line)
+      <span class="token keyword">if</span> (newPosition) {
+        <span class="token keyword">if</span> (newPosition.y &lt; this.position.y) {
+          this.velocity.y = 0
+        }
+        <span class="token keyword">if</span> (newPosition.x &lt; this.position.x) {
+          this.velocity.x = 0
+          this.direction = -1
+        } <span class="token keyword">else</span> <span class="token keyword">if</span> (newPosition.x &gt; this.position.x) {
+          this.velocity.x = 0
+          this.direction = 1
+        }
+        this.position.set(newPosition.x, newPosition.y)
+      }
+    }
+
+    <span class="token keyword">if</span> (this.velocity.y == 0) {
+      this.velocity.x += 1 * this.direction
+    }
+    <span class="token keyword">if</span> (this.position.y &gt; worldHeight) {
+      this.position.y = 0
+    }
+    //<span class="token keyword">if</span> (this.velocity.y == 0) switchAndResetIfNewAnimation(Animations.blueBerry.run, this.animationPlayer)
+    //<span class="token keyword">if</span> (this.velocity.y &gt; 0) switchAndResetIfNewAnimation(Animations.blueBerry.fall, this.animationPlayer)
+  }
+
+
+  getBoundingRectangle() {
+    <span class="token keyword">const</span> frame = this.animationPlayer.currentSprite()
+    <span class="token keyword">return</span> tRectangle.get(this.position.x + 10, this.position.y + 7, frame.width - 14, frame.height - 11)
+  }
+
+  draw() {
+    <span class="token keyword">const</span> sprite = this.animationPlayer.currentSprite()
+    drawWrappedAroundBottom(this.position.x, this.position.y, sprite, this.spriteRenderer, this.direction &gt; 0)
+  }
+}
+
+<span class="token keyword">const</span> animations = {
+  run: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.melonRun0),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.melonRun1),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.melonRun2),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.melonRun3),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.melonRun4),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.melonRun5),
+    ]),
+  fall: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+
+    ]),
+}</pre></div></main><div class="bar"><a href="player.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#33" class="center NavigationLink">33</a> <a href="background.html" class="right NavigationLink">Next</a></div></body></html>

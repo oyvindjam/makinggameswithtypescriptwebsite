@@ -1,0 +1,139 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Collision detection | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="text-rendering.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#28" class="center NavigationLink">28</a> <a href="jumping.html" class="right NavigationLink">Next</a></div><main><h1>Collision detection</h1><p>To create solid objects we need to find out when they collide.</p><h2>Line segment intersection</h2><p>We begin by finding out where and if two segments intersect.</p><div class="CodeDisplay"><header>src/findLineIntersection.ts</header><pre><span class="token keyword">import</span> { Line } <span class="token keyword">from</span> <span class="token string">&quot;./Line&quot;</span>;
+<span class="token keyword">import</span> { tVector2 } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> findLineIntersection(l0: Line, l1: Line) {
+  <span class="token keyword">const</span> divisor =
+    (l1.p1.x - l1.p0.x) * (l0.p0.y - l0.p1.y) -
+    (l0.p0.x - l0.p1.x) * (l1.p1.y - l1.p0.y)
+  <span class="token keyword">if</span> (divisor == 0) <span class="token keyword">return</span> <span class="token boolean">null</span>
+
+  <span class="token keyword">const</span> ta = (
+    (l1.p0.y - l1.p1.y) * (l0.p0.x - l1.p0.x) +
+    (l1.p1.x - l1.p0.x) * (l0.p0.y - l1.p0.y)
+  ) / divisor
+
+  <span class="token keyword">const</span> tb = (
+    (l0.p0.y - l0.p1.y) * (l0.p0.x - l1.p0.x) +
+    (l0.p1.x - l0.p0.x) * (l0.p0.y - l1.p0.y)
+  ) / divisor
+
+  <span class="token keyword">if</span> (ta &gt;= 0 &amp;&amp; ta &lt;= 1 &amp;&amp; tb &gt;= 0 &amp;&amp; tb &lt;= 1) {
+    <span class="token keyword">return</span> tVector2.get(
+      l0.p0.x + ta * (l0.p1.x - l0.p0.x),
+      l0.p0.y + ta * (l0.p1.y - l0.p0.y))
+  }
+  <span class="token keyword">return</span> <span class="token boolean">null</span>
+}</pre></div><h2>Collision system</h2><div class="CodeDisplay"><header>src/collission.ts</header><pre><span class="token keyword">import</span> { Vector2, dot, subtract } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>
+<span class="token keyword">import</span> { Line } <span class="token keyword">from</span> <span class="token string">&quot;./Line&quot;</span>
+<span class="token keyword">import</span> { tRectangle, tVector2, tLine } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+<span class="token keyword">import</span> { findLineIntersection } <span class="token keyword">from</span> <span class="token string">&quot;./findLineIntersection&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> resolveCollision(
+  oldPosition: Vector2, newPosition: Vector2,
+  width: number, height: number, line: Line
+) {
+  <span class="token keyword">const</span> intersection = detectCollision(oldPosition, newPosition, width, height, line)
+  <span class="token keyword">if</span> (!intersection) <span class="token keyword">return</span> <span class="token boolean">null</span>
+
+  <span class="token keyword">const</span> lineDirection = subtract(line.p1, line.p0)
+  lineDirection.normalize()
+
+  <span class="token keyword">const</span> xContrib = Math.abs(lineDirection.y)
+  <span class="token keyword">const</span> yContrib = Math.abs(lineDirection.x)
+  <span class="token keyword">const</span> result = tVector2.get(
+    ((newPosition.x) * (1 - xContrib) + (intersection.x * xContrib)),
+    ((newPosition.y) * (1 - yContrib) + (intersection.y * yContrib))
+  )
+
+  <span class="token keyword">const</span> lineNormal = tVector2.get(lineDirection.y, -lineDirection.x)
+  result.x += lineNormal.x * 0.01
+  result.y += lineNormal.y * 0.01
+
+  <span class="token keyword">return</span> result
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> detectCollision(
+  oldPosition: Vector2, newPosition: Vector2,
+  width: number, height: number, line: Line
+) {
+  <span class="token keyword">const</span> lineDirection = subtract(line.p1, line.p0)
+  lineDirection.normalize()
+  <span class="token keyword">const</span> lineNormal = tVector2.get(lineDirection.y, -lineDirection.x)
+
+  <span class="token keyword">const</span> oldToNew = subtract(newPosition, oldPosition)
+  oldToNew.normalize()
+
+  <span class="token keyword">if</span> (dot(oldToNew, lineNormal) &gt; 0) <span class="token keyword">return</span> <span class="token boolean">null</span>
+
+  <span class="token keyword">const</span> halfWidth = width / 2
+  <span class="token keyword">const</span> halfHeight = height / 2
+
+  <span class="token keyword">const</span> extraLength = Math.abs(lineDirection.x * halfWidth) + 
+    Math.abs(lineDirection.y * halfHeight)
+
+  <span class="token keyword">const</span> start = tVector2.get(
+    line.p0.x - extraLength * lineDirection.x,
+    line.p0.y - extraLength * lineDirection.y
+  )
+  <span class="token keyword">const</span> end = tVector2.get(
+    line.p1.x + extraLength * lineDirection.x,
+    line.p1.y + extraLength * lineDirection.y
+  )
+
+  <span class="token keyword">const</span> size = Math.abs(lineNormal.x * halfWidth) +
+    Math.abs(lineNormal.y * halfHeight)
+  
+  <span class="token keyword">const</span> p1 = tVector2.get(
+    start.x + lineNormal.x * size,
+    start.y + lineNormal.y * size
+  )
+  <span class="token keyword">const</span> p2 = tVector2.get(
+    end.x + lineNormal.x * size,
+    end.y + lineNormal.y * size
+  )
+
+  <span class="token keyword">const</span> extendedLine = tLine.get(p1, p2)
+
+  <span class="token keyword">const</span> oldPositionCenter = tVector2.get(
+    oldPosition.x + width / 2,
+    oldPosition.y + height / 2
+  )
+  <span class="token keyword">const</span> newPositionCenter = tVector2.get(
+    newPosition.x + width / 2,
+    newPosition.y + height / 2
+  )
+  <span class="token keyword">const</span> fromOldCenterToNewCenter = tLine.get(
+    oldPositionCenter,
+    newPositionCenter
+  )
+  <span class="token keyword">const</span> intersection = findLineIntersection(
+    extendedLine,
+    fromOldCenterToNewCenter
+  )
+  <span class="token keyword">if</span> (!intersection) <span class="token keyword">return</span> <span class="token boolean">false</span>
+
+  <span class="token keyword">return</span> tVector2.get(
+    intersection.x - halfWidth,
+    intersection.y - halfHeight
+  )
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> doRectanglesOverlap(r0: Rectangle, r1: Rectangle) {
+  <span class="token keyword">const</span> expandedR1 = tRectangle.get(
+    r1.x - r0.width / 2,
+    r1.y - r0.height / 2,
+    r1.width + r0.width,
+    r1.height + r0.height
+  )
+  <span class="token keyword">const</span> centerR0 = tVector2.get(
+    r0.x + r0.width / 2,
+    r0.y + r0.height / 2
+  )
+  <span class="token keyword">return</span> isPointInsideRectangle(centerR0, expandedR1)
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> isPointInsideRectangle(point: Vector2, rect: Rectangle) {
+  <span class="token keyword">return</span> point.x &gt;= rect.x &amp;&amp; point.x &lt;= rect.x + rect.width &amp;&amp;
+    point.y &gt;= rect.y &amp;&amp; point.y &lt;= rect.y + rect.height
+}</pre></div><h2>Links</h2><ul><li><a href="http://www.cs.swan.ac.uk/~cssimon/line_intersection.html" target="_blank" rel="noreferrer">Intersection of two line segments - Simon Walton</a></li></ul></main><div class="bar"><a href="text-rendering.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#28" class="center NavigationLink">28</a> <a href="jumping.html" class="right NavigationLink">Next</a></div></body></html>

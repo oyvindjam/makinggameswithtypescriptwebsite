@@ -1,0 +1,126 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="Description" content="Implementing pointer controls"><title>Pointer | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="controls-gamepad.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#18" class="center NavigationLink">18</a> <a href="audio.html" class="right NavigationLink">Next</a></div><main><h1>Pointer</h1><p>Pointer controls are used on touch screen devices like smart phones, tablets, touch screen monitors, etc.</p><p>We will split the screen into four columns that maps to buttons on our controller.</p><div class="figurecontainer"><figure class="width100 maxWidth400"><img src="click_areas.svg" alt="Screen diveded into 4 columns"><figcaption><div>Click regions</div></figcaption></figure></div><div class="CodeDisplay"><header>src/PointerController.ts</header><pre><span class="token keyword">import</span> { Controller } <span class="token keyword">from</span> <span class="token string">&quot;./Controller&quot;</span>
+<span class="token keyword">import</span> { worldWidth, worldHeight, tileSize } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { ScaleRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./ScaleRenderer&quot;</span>;
+<span class="token keyword">import</span> { TranslationRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./TranslationRenderer&quot;</span>;
+
+<span class="token keyword">enum</span> Button {
+  left, rigth, jump, shoot
+}
+
+<span class="token keyword">class</span> PointerState {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">readonly</span> pointerId: number,
+    <span class="token keyword">public</span> button: Button
+  ) { }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> PointerController {
+
+  <span class="token keyword">readonly</span> buttons: ReadonlyArray&lt;Rectangle&gt; = [
+    TextureAtlas.buttonJump, TextureAtlas.buttonShoot,
+    TextureAtlas.buttonLeft, TextureAtlas.buttonRight
+  ]
+  <span class="token keyword"><span class="token keyword">private</span></span> pointerStates: PointerState[] = []
+  <span class="token keyword"><span class="token keyword">private</span></span> <span class="token keyword">readonly</span> buttonWidth = worldWidth / this.buttons.length
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> controller: Controller,
+    canvas: HTMLCanvasElement,
+    <span class="token keyword"><span class="token keyword">private</span></span> scaleRenderer: ScaleRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> translationRenderer: TranslationRenderer
+  ) {
+    canvas.addEventListener(<span class="token string">&quot;pointerdown&quot;</span>, pointerEvent =&gt; {
+      <span class="token keyword">const</span> x = this.toWorldCoordinate(pointerEvent.x)
+      <span class="token keyword">const</span> button = this.getButton(x)
+      <span class="token keyword">if</span> (button == <span class="token boolean">null</span>) <span class="token keyword">return</span>
+
+      this.press(button)
+      this.pointerStates = this.pointerStates.filter(
+        pointerState =&gt; pointerState.pointerId != pointerEvent.pointerId)
+
+      <span class="token keyword">const</span> pointerState = <span class="token keyword">new</span> PointerState(pointerEvent.pointerId, button)
+      this.pointerStates.push(pointerState)
+    })
+
+    canvas.addEventListener(<span class="token string">&quot;pointerup&quot;</span>, pointerEvent =&gt; {
+      <span class="token keyword">const</span> pointerState = this.pointerStates.find(
+        pointerState =&gt; pointerState.pointerId == pointerEvent.pointerId)
+      <span class="token keyword">if</span> (!pointerState) <span class="token keyword">return</span>
+
+      this.release(pointerState.button)
+
+      <span class="token keyword">const</span> index = this.pointerStates.indexOf(pointerState)
+      <span class="token keyword">if</span> (index == -1) <span class="token keyword">return</span>
+      this.pointerStates.splice(index, 1)
+    })
+
+    canvas.addEventListener(<span class="token string">&quot;pointermove&quot;</span>, pointerEvent =&gt; {
+      <span class="token keyword">const</span> pointerState = this.pointerStates.find(
+        pointerState =&gt; pointerState.pointerId == pointerEvent.pointerId)
+      <span class="token keyword">if</span> (!pointerState) <span class="token keyword">return</span>
+
+      <span class="token keyword">const</span> x = this.toWorldCoordinate(pointerEvent.x)
+      <span class="token keyword">const</span> button = this.getButton(x)
+      <span class="token keyword">if</span> (button == <span class="token boolean">null</span>) <span class="token keyword">return</span>
+
+      pointerState.button != button
+
+      this.release(pointerState.button)
+      this.press(button)
+      pointerState.button = button
+    })
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> release(button: Button) {
+    <span class="token keyword">if</span> (button == Button.jump) this.controller.releaseActionButton1()
+    <span class="token keyword">else</span> <span class="token keyword">if</span> (button == Button.shoot) this.controller.releaseActionButton2()
+    <span class="token keyword">else</span> <span class="token keyword">if</span> (button == Button.left) this.controller.releaseLeft()
+    <span class="token keyword">else</span> <span class="token keyword">if</span> (button == Button.rigth) this.controller.releaseRight()
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> press(button: Button) {
+    <span class="token keyword">if</span> (button == Button.jump) this.controller.pressActionButton1()
+    <span class="token keyword">else</span> <span class="token keyword">if</span> (button == Button.shoot) this.controller.pressActionButton2()
+    <span class="token keyword">else</span> <span class="token keyword">if</span> (button == Button.left) this.controller.pressLeft()
+    <span class="token keyword">else</span> <span class="token keyword">if</span> (button == Button.rigth) this.controller.pressRight()
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> toWorldCoordinate(x: number) {
+    x -= this.translationRenderer.xOffset
+    x /= this.scaleRenderer.scale
+    <span class="token keyword">return</span> x
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> isJumpButton(x: number) {
+    <span class="token keyword">return</span> x &lt; this.buttonWidth
+  }
+  <span class="token keyword"><span class="token keyword">private</span></span> isShootButton(x: number) {
+    <span class="token keyword">return</span> x &gt;= this.buttonWidth &amp;&amp; x &lt; 2 * this.buttonWidth
+  }
+  <span class="token keyword"><span class="token keyword">private</span></span> isLeftButton(x: number) {
+    <span class="token keyword">return</span> x &gt;= 2 * this.buttonWidth &amp;&amp; x &lt; 3 * this.buttonWidth
+  }
+  <span class="token keyword"><span class="token keyword">private</span></span> isRightButton(x: number) {
+    <span class="token keyword">return</span> x &gt;= 2 * this.buttonWidth
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> getButton(x: number) {
+    <span class="token keyword">if</span> (this.isJumpButton(x)) <span class="token keyword">return</span> Button.jump
+    <span class="token keyword">if</span> (this.isShootButton(x)) <span class="token keyword">return</span> Button.shoot
+    <span class="token keyword">if</span> (this.isLeftButton(x)) <span class="token keyword">return</span> Button.left
+    <span class="token keyword">if</span> (this.isRightButton(x)) <span class="token keyword">return</span> Button.rigth
+    <span class="token keyword">return</span> <span class="token boolean">null</span>
+  }
+
+  draw(spriteRenderer: SpriteRenderer) {
+    <span class="token keyword">const</span> buttonWidth = worldWidth / this.buttons.length
+    <span class="token keyword">for</span> (<span class="token keyword">let</span> i = 0; i &lt; this.buttons.length; i++) {
+      <span class="token keyword">const</span> sprite = this.buttons[i]
+      <span class="token keyword">const</span> x = i * buttonWidth + buttonWidth / 2 - sprite.width / 2
+      spriteRenderer.sprite(x, worldHeight - sprite.height - tileSize / 4, sprite)
+    }
+  }
+}</pre></div><p>Since the player needs to know where to touch to activate the button we also need to draw to the screen icons of what each area does.</p><h2>Links</h2><ul><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events" target="_blank" rel="noreferrer">Pointer events - Web APIs | MDN</a></li></ul></main><div class="bar"><a href="controls-gamepad.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#18" class="center NavigationLink">18</a> <a href="audio.html" class="right NavigationLink">Next</a></div></body></html>

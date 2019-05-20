@@ -1,0 +1,140 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Saving and loading | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="baskets.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#23" class="center NavigationLink">23</a> <a href="texture-atlas.html" class="right NavigationLink">Next</a></div><main><h1>Saving and loading</h1><p>We will use the localStorage api for this All the progress will be lost if the user closes the window. and we need to be able to load back the data. There are several way games can do this we could also save our state at a server and then the user could provide login credentials to get hers load game. local storage is an api to access the web browsers storage and works by storing key value pairs. We save top score, unlocked characters and unlocked guns.</p><div class="CodeDisplay"><header>src/Persistence.ts</header><pre><span class="token keyword">export</span> <span class="token keyword">class</span> Persistence {
+
+  <span class="token keyword"><span class="token keyword">private</span></span> <span class="token keyword">readonly</span> allowStorageKey = <span class="token string">&quot;allowStorage&quot;</span>
+  allowStorage = <span class="token boolean">false</span>
+
+  <span class="token keyword"><span class="token keyword">private</span></span> <span class="token keyword">readonly</span> scoreKey = <span class="token string">&quot;score&quot;</span>
+  <span class="token keyword"><span class="token keyword">private</span></span> score: number | <span class="token boolean">null</span> = <span class="token boolean">null</span>
+
+  <span class="token keyword">constructor</span>() {
+    this.allowStorage = window.localStorage.getItem(this.allowStorageKey) != <span class="token boolean">null</span>
+  }
+
+  getScore() {
+    <span class="token keyword">if</span> (!this.allowStorage) <span class="token keyword">return</span> 0
+    <span class="token keyword">if</span> (this.score == <span class="token boolean">null</span>) {
+      <span class="token keyword">const</span> score = window.localStorage.getItem(this.scoreKey)
+      <span class="token keyword">if</span> (score == <span class="token boolean">null</span>) <span class="token keyword">return</span> 0
+      this.score = parseInt(score)
+    }
+    <span class="token keyword">return</span> this.score
+  }
+
+  saveScore(score: number) {
+    this.score = score
+    <span class="token keyword">if</span> (!this.allowStorage) <span class="token keyword">return</span>
+    window.localStorage.setItem(this.scoreKey, score.toString())
+  }
+
+  userAllowedStorage() {
+    this.allowStorage = <span class="token boolean">true</span>
+    window.localStorage.setItem(this.allowStorageKey, <span class="token string">&quot;yes&quot;</span>)
+    <span class="token keyword">if</span> (this.score != <span class="token boolean">null</span>) this.saveScore(this.score)
+  }
+}</pre></div><h2>User consent</h2><p>The European Union has regulation concerning privacy, and we are in most cases required to get user concent before we can store any information in the browser.</p><div class="CodeDisplay"><header>src/CookieNotice.ts</header><pre>
+<span class="token keyword">export</span> <span class="token keyword">class</span> CookieNotice {
+
+  <span class="token keyword">constructor</span>(
+    onAllowCookies: () =&gt; void
+  ) {
+    <span class="token keyword">const</span> divID = <span class="token string">&quot;CookieNotice&quot;</span>
+    <span class="token keyword">const</span> buttonClass = <span class="token string">&quot;Button&quot;</span>
+    <span class="token keyword">const</span> acceptID = <span class="token string">&quot;accept&quot;</span>
+    <span class="token keyword">const</span> declineID = <span class="token string">&quot;decline&quot;</span>
+    <span class="token keyword">const</span> textID = <span class="token string">&quot;text&quot;</span>
+
+    <span class="token keyword">const</span> style = document.createElement(<span class="token string">&quot;style&quot;</span>)
+    style.innerHTML = <span class="token string">`</span>
+<span class="token string">    #${divID} {</span>
+<span class="token string">      font-family: sans-serif;</span>
+<span class="token string">      position: absolute;</span>
+<span class="token string">      bottom: 20px;</span>
+<span class="token string">      width: 100%;</span>
+<span class="token string">      max-width: 800px;</span>
+<span class="token string">      background-color: #ffffff;</span>
+<span class="token string">      box-shadow: 0 1px 2px 1px black;</span>
+<span class="token string">      text-align: center;</span>
+<span class="token string">      padding: 10px;</span>
+<span class="token string">      box-sizing: border-box;</span>
+<span class="token string">      left: 50%;</span>
+<span class="token string">      transform: translateX(-50%);</span>
+<span class="token string">      border-radius: 5px;</span>
+<span class="token string">    }</span>
+<span class="token string"></span>
+<span class="token string">    #${textID} {</span>
+<span class="token string">      font-size: 1.3rem;</span>
+<span class="token string">      line-height: 2rem;</span>
+<span class="token string">    }</span>
+<span class="token string"></span>
+<span class="token string">    #${divID} .${buttonClass} {</span>
+<span class="token string">      box-shadow: 0 1px 2px -1px black;</span>
+<span class="token string">      font-size: 2rem;</span>
+<span class="token string">      color: white;</span>
+<span class="token string">      text-shadow: 0 2px 2px black;</span>
+<span class="token string">      border-style: none;</span>
+<span class="token string">      border-radius: 5px;</span>
+<span class="token string">      flex: 1;</span>
+<span class="token string">      margin-left: 1rem;</span>
+<span class="token string">    }</span>
+<span class="token string"></span>
+<span class="token string">    #${divID} ${buttonClass}:first-child {</span>
+<span class="token string">      margin-right: 1rem;</span>
+<span class="token string">      margin-left: 0;</span>
+<span class="token string">    }</span>
+<span class="token string"></span>
+<span class="token string">    #${divID} ${buttonClass}:hover {</span>
+<span class="token string">      cursor: pointer;</span>
+<span class="token string">    }</span>
+<span class="token string"></span>
+<span class="token string">    #${acceptID} {</span>
+<span class="token string">      background-color: #6abe30;</span>
+<span class="token string">    }</span>
+<span class="token string"></span>
+<span class="token string">    #${declineID} {</span>
+<span class="token string">      background-color: #ac3232;</span>
+<span class="token string">    }</span>
+<span class="token string"></span>
+<span class="token string">    .row {</span>
+<span class="token string">      padding-top: 20px;</span>
+<span class="token string">      display: flex;</span>
+<span class="token string">    }</span>
+<span class="token string"></span>
+<span class="token string">    `</span>
+    document.body.appendChild(style)
+
+
+    <span class="token keyword">const</span> element = document.createRange().createContextualFragment(<span class="token string">`</span>
+<span class="token string">    &lt;div id=<span class="token string">&quot;${divID}&quot;</span>&gt;</span>
+<span class="token string">      &lt;div <span class="token keyword">class</span>=<span class="token string">&quot;padding&quot;</span>&gt;</span>
+<span class="token string">        &lt;h1&gt;Allow cookies?&lt;/h1&gt;</span>
+<span class="token string">        &lt;div id=<span class="token string">&quot;${textID}&quot;</span>&gt;</span>
+<span class="token string">          Accepting cookies will store &lt;i&gt;allowedStorage&lt;/i&gt; and &lt;i&gt;highscore&lt;/i&gt;</span>
+<span class="token string">          in your browser. &lt;i&gt;allowedStorage&lt;/i&gt; will prevent this message <span class="token keyword">from</span></span>
+<span class="token string">          reappearing and &lt;i&gt;highscore&lt;/i&gt; will store your highscore.</span>
+<span class="token string">        &lt;/div&gt;</span>
+<span class="token string">        &lt;div <span class="token keyword">class</span>=<span class="token string">&quot;row&quot;</span>&gt;</span>
+<span class="token string">          &lt;button id=<span class="token string">&quot;${acceptID}&quot;</span> <span class="token keyword">class</span>=<span class="token string">&quot;${buttonClass}&quot;</span>&gt;Yes&lt;/button&gt;</span>
+<span class="token string">          &lt;button id=<span class="token string">&quot;${declineID}&quot;</span> <span class="token keyword">class</span>=<span class="token string">&quot;${buttonClass}&quot;</span>&gt;No&lt;/button&gt;</span>
+<span class="token string">        &lt;/div&gt;</span>
+<span class="token string">      &lt;/div&gt;</span>
+<span class="token string">    &lt;/div&gt;</span>
+<span class="token string">    `</span>)
+    document.body.appendChild(element)
+
+    <span class="token keyword">const</span> div = document.getElementById(divID)
+    <span class="token keyword">const</span> acceptButton = document.getElementById(acceptID)
+    <span class="token keyword">const</span> declineButton = document.getElementById(declineID)
+
+    <span class="token keyword">if</span> (div &amp;&amp; acceptButton &amp;&amp; declineButton) {
+      acceptButton.addEventListener(<span class="token string">&quot;click&quot;</span>, () =&gt; {
+        document.body.removeChild(div)
+        onAllowCookies()
+      })
+
+      declineButton.addEventListener(<span class="token string">&quot;click&quot;</span>, () =&gt; {
+        document.body.removeChild(div)
+        document.body.removeChild(style)
+      })
+    }
+  }
+}</pre></div><h2>Links</h2><ul><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API" target="_blank" rel="noreferrer">Web Storage API - Web APIs | MDN</a></li><li><a href="http://ec.europa.eu/ipg/basics/legal/cookies/index_en.htm" target="_blank" rel="noreferrer">Cookies - European commission</a></li></ul></main><div class="bar"><a href="baskets.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#23" class="center NavigationLink">23</a> <a href="texture-atlas.html" class="right NavigationLink">Next</a></div></body></html>

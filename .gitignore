@@ -1,0 +1,6 @@
+node_modules/
+book/
+dist/
+*.js.map
+pages.json
+.vscode/

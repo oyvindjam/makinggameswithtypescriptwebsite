@@ -1,0 +1,89 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="Description" content="A quick look at TypeScript"><title>TypeScript | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="prerequisites.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#6" class="center NavigationLink">6</a> <a href="npm.html" class="right NavigationLink">Next</a></div><main><h1>TypeScript</h1><p>We are using <a href="https://www.typescriptlang.org/" target="_blank" rel="noreferrer">TypeScript</a> and below follows code examples that show most of the language features used in this book.</p><h2>Variables</h2><pre class="InlineCode">
+<span class="token keyword">let</span> x = 10
+<span class="token keyword">const</span> y = 10
+<span class="token keyword">let</span> yes: boolean = <span class="token boolean">true</span>
+<span class="token keyword">const</span> no: boolean = <span class="token boolean">false</span>
+</pre><h2>Strings</h2><pre class="InlineCode">
+<span class="token keyword">const</span> stringDoubleQuotes = <span class="token string">&quot;hello world&quot;</span>
+<span class="token keyword">const</span> stringSingleQuotes = <span class="token string">&#39;Hello world&#39;</span>
+<span class="token keyword">const</span> stringBackticks = <span class="token string">`Hello world`</span>
+<span class="token keyword">const</span> multilineString = <span class="token string">`</span>
+<span class="token string">Hello</span>
+<span class="token string">world</span>
+<span class="token string">`</span>
+<span class="token keyword">const</span> x = 55
+<span class="token keyword">const</span> templateString = <span class="token string">`x is ${x}`</span>
+</pre><h2>Functions</h2><pre class="InlineCode">
+<span class="token keyword">function</span> add(a: number, b: string): number {
+  <span class="token keyword">return</span> a + b
+}
+<span class="token keyword">const</span> add2 = (a: number, b: number) =&gt; { <span class="token keyword">return</span> a + b }
+<span class="token keyword">const</span> add3 = (a: number, b: number) =&gt; a + b
+
+add(1, 1)
+</pre><h2>Classes</h2><pre class="InlineCode">
+<span class="token keyword">class</span> Person {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">public</span> name: string
+  )
+  sayHello() {
+    console.log(<span class="token string">&quot;Hello&quot;</span>)
+  }
+}
+
+<span class="token keyword">const</span> person = <span class="token keyword">new</span> Person(<span class="token string">&quot;Jane&quot;</span>)
+person.sayHello()
+</pre><h2>Interfaces</h2><pre class="InlineCode">
+<span class="token keyword">interface</span> Cool {
+  beCool(): void
+}
+
+<span class="token keyword">class</span> B <span class="token keyword">implements</span> Cool {
+  beCool() {}
+}
+
+<span class="token keyword">const</span> b: Cool = <span class="token keyword">new</span> B
+</pre><h2>Iteration</h2><pre class="InlineCode">
+<span class="token keyword">for</span> (<span class="token keyword">let</span> i = 0; i &lt; 10; i++) {
+    
+}
+
+<span class="token keyword">let</span> i = 0
+<span class="token keyword">while</span> (i &lt; 10) {
+  i++
+}
+</pre><h2>Arrays and array traversal</h2><pre class="InlineCode">
+<span class="token keyword">const</span> digits: number[] = [1, 2, 3, 4]
+<span class="token keyword">const</span> words = [<span class="token string">&quot;hello&quot;</span>, <span class="token string">&quot;world&quot;</span>]
+
+<span class="token keyword">for</span> (<span class="token keyword">let</span> i = 0; i &lt; words.length; i++) {
+  <span class="token keyword">const</span> word = words[i]
+}
+
+<span class="token keyword">for</span> (<span class="token keyword">const</span> word <span class="token keyword">of</span> words) {
+}
+
+words.forEach(word =&gt; {
+})
+</pre><h2>If, switch and conditional operator</h2><pre class="InlineCode">
+<span class="token keyword">const</span> x = 10
+
+<span class="token keyword">if</span> (x == 1) {
+
+} <span class="token keyword">else</span> <span class="token keyword">if</span> (x == 2) {
+
+} <span class="token keyword">else</span> {
+
+}
+
+<span class="token keyword">switch</span> (x) {
+  <span class="token keyword">case</span> 1:
+    <span class="token keyword">break</span>;
+  <span class="token keyword">case</span> 2: 
+    <span class="token keyword">break</span>;
+  <span class="token keyword">default</span>:
+    <span class="token keyword">break</span>;
+}
+
+<span class="token keyword">const</span> y = 10 &lt; 5 ? <span class="token string">&quot;is less&quot;</span> : <span class="token string">&quot;is greater or equal&quot;</span>
+</pre><h2>That is it</h2><p>If you are familiar with the code in the examples above you should be able to understand most of the code in this book.</p><h2>Links</h2><ul><li><a href="https://www.typescriptlang.org/docs/home.html" target="_blank" rel="noreferrer">Documentation · TypeScript</a></li></ul></main><div class="bar"><a href="prerequisites.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#6" class="center NavigationLink">6</a> <a href="npm.html" class="right NavigationLink">Next</a></div></body></html>

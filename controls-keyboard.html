@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="Description" content="Implementing key controls"><title>Keyboard | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="controls.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#16" class="center NavigationLink">16</a> <a href="controls-gamepad.html" class="right NavigationLink">Next</a></div><main><h1>Keyboard</h1><p>Keyboard controls are used when playing on PC.</p><div class="figurecontainer"><figure class="width100 maxWidth400"><img src="keyboard.svg" alt="A keyboard with many buttons"><figcaption><div>Keyboard</div></figcaption></figure></div><div class="CodeDisplay"><header>src/KeyController.ts</header><pre><span class="token keyword">import</span> { Controller } <span class="token keyword">from</span> <span class="token string">&quot;./Controller&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> KeyController {
+  <span class="token keyword">constructor</span>(
+    controller: Controller,
+    leftKeys: ReadonlyArray&lt;string&gt;,
+    rightKeys: ReadonlyArray&lt;string&gt;,
+    actionButton1Keys: ReadonlyArray&lt;string&gt;,
+    actionButton2Keys: ReadonlyArray&lt;string&gt;,
+  ) {
+    window.addEventListener(<span class="token string">&quot;keydown&quot;</span>, keyboardEvent =&gt; {
+      <span class="token keyword">if</span> (keyboardEvent.repeat) <span class="token keyword">return</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> (leftKeys.includes(keyboardEvent.code)) controller.pressLeft()
+      <span class="token keyword">else</span> <span class="token keyword">if</span> (rightKeys.includes(keyboardEvent.code)) controller.pressRight()
+      <span class="token keyword">else</span> <span class="token keyword">if</span> (actionButton1Keys.includes(keyboardEvent.code)) controller.pressActionButton1()
+      <span class="token keyword">else</span> <span class="token keyword">if</span> (actionButton2Keys.includes(keyboardEvent.code)) controller.pressActionButton2()
+    })
+
+    window.addEventListener(<span class="token string">&quot;keyup&quot;</span>, keyboardEvent =&gt; {
+      <span class="token keyword">if</span> (leftKeys.includes(keyboardEvent.code)) controller.releaseLeft()
+      <span class="token keyword">else</span> <span class="token keyword">if</span> (rightKeys.includes(keyboardEvent.code)) controller.releaseRight()
+      <span class="token keyword">else</span> <span class="token keyword">if</span> (actionButton1Keys.includes(keyboardEvent.code)) controller.releaseActionButton1()
+      <span class="token keyword">else</span> <span class="token keyword">if</span> (actionButton2Keys.includes(keyboardEvent.code)) controller.releaseActionButton2()
+    })
+  }
+}</pre></div><p>The class is passed arrays of strings that contain keycodes that should cause the function on the contoroller to be called. This makes it easy to remapping controls since we can just change the values that are in the array from the outside.</p><p>To capture events we add an event listener on keyup and keydown events.</p><h2>Links</h2><ul><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent" target="_blank" rel="noreferrer">KeyboardEvent - Web APIs | MDN</a></li><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values" target="_blank" rel="noreferrer">Key Values - Web APIs | MDN</a></li></ul></main><div class="bar"><a href="controls.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#16" class="center NavigationLink">16</a> <a href="controls-gamepad.html" class="right NavigationLink">Next</a></div></body></html>

@@ -1,0 +1,95 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="Description" content="Implementing gamepad controls"><title>Gamepad | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="controls-keyboard.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#17" class="center NavigationLink">17</a> <a href="controls-pointer.html" class="right NavigationLink">Next</a></div><main><h1>Gamepad</h1><p>Adding support for gamepad controllers which lets us use many different controllers like xbox and dualshock controllers. The HTML gamepad API works a bit differently and are not based on events whenever a button is pressed, but we need to manually get the state of the button.</p><div class="figurecontainer"><figure class="width100 maxWidth400"><img src="gamepad_controller.svg" alt="A gamepad with 8 buttons and 2 joysticks"><figcaption><div>Gamepad</div></figcaption></figure></div><div class="CodeDisplay"><header>src/GamepadController.ts</header><pre><span class="token keyword">import</span> { Controller } <span class="token keyword">from</span> <span class="token string">&quot;./Controller&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> GamepadController {
+
+  <span class="token keyword"><span class="token keyword">private</span></span> buttonIndexLeft = 14
+  <span class="token keyword"><span class="token keyword">private</span></span> buttonIndexRight = 15
+  <span class="token keyword"><span class="token keyword">private</span></span> buttonIndexJump = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> buttonIndexShoot = 2
+
+  <span class="token keyword"><span class="token keyword">private</span></span> horizontalAxisIndex = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> lastHorizontalAxisValue = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> axisTreshold = 0.5
+
+  <span class="token keyword"><span class="token keyword">private</span></span> leftIsPressed = <span class="token boolean">false</span>
+  <span class="token keyword"><span class="token keyword">private</span></span> rightIsPressed = <span class="token boolean">false</span>
+  <span class="token keyword"><span class="token keyword">private</span></span> jumpIsPressed = <span class="token boolean">false</span>
+  <span class="token keyword"><span class="token keyword">private</span></span> shootIsPressed = <span class="token boolean">false</span>
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> controller: Controller
+  ) {
+    this.update()
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> update() {
+    requestAnimationFrame(() =&gt; this.update())
+    <span class="token keyword">const</span> gamepad = getFirstGamepad()
+    <span class="token keyword">if</span> (!gamepad) <span class="token keyword">return</span>
+
+    this.updateButtons(gamepad)
+    this.updateAxis(gamepad)    
+  }
+
+  updateButtons(gamepad: Gamepad) {
+    <span class="token keyword">const</span> leftPressedNow = isButtonPressed(this.buttonIndexLeft, gamepad)
+    <span class="token keyword">if</span> (this.leftIsPressed !== leftPressedNow) {
+      <span class="token keyword">if</span> (leftPressedNow) this.controller.pressLeft()
+      <span class="token keyword">else</span> this.controller.releaseLeft()
+    }
+
+    <span class="token keyword">const</span> rightPressedNow = isButtonPressed(this.buttonIndexRight, gamepad)
+    <span class="token keyword">if</span> (this.rightIsPressed !== rightPressedNow) {
+      <span class="token keyword">if</span> (rightPressedNow) this.controller.pressRight()
+      <span class="token keyword">else</span> this.controller.releaseRight()
+    }
+
+    <span class="token keyword">const</span> shootPressedNow = isButtonPressed(this.buttonIndexShoot, gamepad)
+    <span class="token keyword">if</span> (this.shootIsPressed !== shootPressedNow) {
+      <span class="token keyword">if</span> (shootPressedNow) this.controller.pressActionButton2()
+      <span class="token keyword">else</span> this.controller.releaseActionButton2()
+    }
+
+    <span class="token keyword">const</span> jumpPressedNow = isButtonPressed(this.buttonIndexJump, gamepad)
+    <span class="token keyword">if</span> (this.jumpIsPressed !== jumpPressedNow) {
+      <span class="token keyword">if</span> (jumpPressedNow) this.controller.pressActionButton1()
+      <span class="token keyword">else</span> this.controller.releaseActionButton1()
+    }
+
+    this.leftIsPressed = leftPressedNow
+    this.rightIsPressed = rightPressedNow
+    this.jumpIsPressed = jumpPressedNow
+    this.shootIsPressed = shootPressedNow
+  }
+
+  updateAxis(gamepad: Gamepad) {
+    <span class="token keyword">const</span> horizontalAxis = gamepad.axes[this.horizontalAxisIndex] || 0
+    <span class="token keyword">if</span> (horizontalAxis &lt; -this.axisTreshold) {
+      <span class="token keyword">if</span> (this.lastHorizontalAxisValue == 1) this.controller.releaseRight()
+      <span class="token keyword">if</span> (this.lastHorizontalAxisValue != -1) {
+        this.lastHorizontalAxisValue = -1
+        this.controller.pressLeft()
+      }
+    } <span class="token keyword">else</span> <span class="token keyword">if</span> (horizontalAxis &gt; this.axisTreshold) {
+      <span class="token keyword">if</span> (this.lastHorizontalAxisValue == -1) this.controller.releaseLeft()
+      <span class="token keyword">if</span> (this.lastHorizontalAxisValue != 1) {
+        this.lastHorizontalAxisValue = 1
+        this.controller.pressRight()
+      }
+    } <span class="token keyword">else</span> {
+      <span class="token keyword">if</span>(this.lastHorizontalAxisValue == -1) this.controller.releaseLeft()
+      <span class="token keyword">if</span>(this.lastHorizontalAxisValue == 1) this.controller.releaseRight()
+      this.lastHorizontalAxisValue = 0
+    }
+  }
+}
+
+<span class="token keyword">function</span> getFirstGamepad() {
+  <span class="token keyword">for</span> (<span class="token keyword">const</span> gamepad <span class="token keyword">of</span> navigator.getGamepads()) <span class="token keyword">if</span> (gamepad) <span class="token keyword">return</span> gamepad
+  <span class="token keyword">return</span> <span class="token boolean">null</span>
+}
+
+<span class="token keyword">function</span> isButtonPressed(index: number, gamepad: Gamepad) {
+  <span class="token keyword">if</span> (index &gt;= gamepad.buttons.length) <span class="token keyword">return</span> <span class="token boolean">false</span>
+  <span class="token keyword">return</span> gamepad.buttons[index].pressed
+}</pre></div><h2>Links</h2><ul><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API" target="_blank" rel="noreferrer">Gamepad API - Web APIs | MDN</a></li><li><a href="https://www.w3.org/TR/gamepad/" target="_blank" rel="noreferrer">Gamepad W3C</a></li></ul></main><div class="bar"><a href="controls-keyboard.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#17" class="center NavigationLink">17</a> <a href="controls-pointer.html" class="right NavigationLink">Next</a></div></body></html>

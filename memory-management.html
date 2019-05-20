@@ -1,0 +1,94 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Memory management | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="building-blocks.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#11" class="center NavigationLink">11</a> <a href="renderer.html" class="right NavigationLink">Next</a></div><main><h1>Memory management</h1><p>TypeScript is transpiled into JavaScript, and JavaScript is a <i>garbage collected</i> language. This is not a problem for most applications, however it can be for games. When the garbage collector starts to run it might use up the time we have to update and draw the game, causing the game to stutter.</p><p>Games often allocate a large number of short lived objects. This causes the memory usage to look like a sawtooth where the garbadge collector needs to run frequently.</p><div class="figurecontainer"><figure class="width100 maxWidth450"><img src="sawtooth.svg" alt="Graph of memory usage showing a sawtooth pattern"><figcaption><div>Sawtooth pattern</div></figcaption></figure></div><h2>Object Pooling</h2><p><i>Object Pooling</i> tries to reuse already created objects.</p><div class="CodeDisplay"><header>src/ObjectPool.ts</header><pre><span class="token keyword">export</span> <span class="token keyword">class</span> ObjectPool&lt;T, V extends any[]&gt; {
+  <span class="token keyword"><span class="token keyword">private</span></span> objects: T[] = []
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> newObject: (...v: V) =&gt; T,
+    <span class="token keyword"><span class="token keyword">private</span></span> initializeObject: (t: T, ...v: V) =&gt; void
+  ) {}
+
+  get(...args: V): T {
+    <span class="token keyword">let</span> object = this.objects.pop()
+    <span class="token keyword">if</span> (object == <span class="token boolean">null</span>) <span class="token keyword">return</span> this.newObject(...args)
+    this.initializeObject(object, ...args)
+    <span class="token keyword">return</span> object
+  }
+
+  add(object: T) {
+    this.objects.push(object)
+  }
+}</pre></div><p>Instead of creating a new object we get one from the pool, however, when we are done with the object it should be added back to the pool.</p><pre class="InlineCode">
+<span class="token keyword">const</span> vector2Pool = <span class="token keyword">new</span> ObjectPool(
+  () =&gt; <span class="token keyword">new</span> Vector2,
+  (v, x: number, y: number) =&gt; {
+    v.x = x
+    v.y = y
+  })
+<span class="token keyword">const</span> vector = vector2Pool.get(50, 50)
+// ...
+// ...
+vector2Pool.add(vector)
+</pre><h2>Managed pools</h2><p>Having to remember to add back all the objects we get from a object pool is error prone. It can be easier to just say that all the objects that have been taken out, should be added back.</p><div class="CodeDisplay"><header>src/ObjectPoolManager.ts</header><pre><span class="token keyword">import</span> { ObjectPool } <span class="token keyword">from</span> <span class="token string">&quot;./ObjectPool&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> ObjectPoolManager&lt;T, V extends any[]&gt; {
+    <span class="token keyword"><span class="token keyword">private</span></span> objects: T[] = []
+    <span class="token keyword">constructor</span>(
+      <span class="token keyword"><span class="token keyword">private</span></span> objectPool: ObjectPool&lt;T, V&gt;
+    ) {}
+  
+    get(...args: V) {
+      <span class="token keyword">const</span> object = this.objectPool.get(...args)
+      this.objects.push(object)
+      <span class="token keyword">return</span> object
+    }
+  
+    release() {
+      <span class="token keyword">while</span>(<span class="token boolean">true</span>) {
+        <span class="token keyword">let</span> object = this.objects.pop()
+        <span class="token keyword">if</span> (object == undefined) <span class="token keyword">return</span>
+        this.objectPool.add(object)
+      }
+    }
+  }</pre></div><h2>Temporary objects</h2><p>Temporary objects are only valid for a single frame. We are not allowed to keep refrences them across frames, since the they are released at the end of the frame.</p><div class="CodeDisplay"><header>src/temporaryObjects.ts</header><pre><span class="token keyword">import</span> { ObjectPoolManager } <span class="token keyword">from</span> <span class="token string">&quot;./ObjectPoolManager&quot;</span>;
+<span class="token keyword">import</span> { ObjectPool } <span class="token keyword">from</span> <span class="token string">&quot;./ObjectPool&quot;</span>;
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>;
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+<span class="token keyword">import</span> { Line } <span class="token keyword">from</span> <span class="token string">&quot;./Line&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">const</span> tVector2 = <span class="token keyword">new</span> ObjectPoolManager(
+  <span class="token keyword">new</span> ObjectPool(
+    (x: number, y: number) =&gt; <span class="token keyword">new</span> Vector2(x, y),
+    (vector, x: number, y: number) =&gt; {
+      vector.x = x
+      vector.y = y
+    }
+  )
+)
+
+<span class="token keyword">export</span> <span class="token keyword">const</span> tRectangle = <span class="token keyword">new</span> ObjectPoolManager(
+  <span class="token keyword">new</span> ObjectPool(
+    (x: number, y: number, width: number, height: number) =&gt; <span class="token keyword">new</span> Rectangle(x, y, width, height),
+    (rectangle, x: number, y: number, width: number, height: number) =&gt; {
+      rectangle.x = x
+      rectangle.y = y
+      rectangle.width = width
+      rectangle.height = height
+    }
+  )
+)
+
+<span class="token keyword">export</span> <span class="token keyword">const</span> tLine = <span class="token keyword">new</span> ObjectPoolManager(
+  <span class="token keyword">new</span> ObjectPool(
+    (p0: Vector2, p1: Vector2) =&gt; <span class="token keyword">new</span> Line(p0, p1),
+    (rectangle, p0: Vector2, p1: Vector2) =&gt; {
+      rectangle.p0 = p0
+      rectangle.p1 = p1
+    }
+  )
+)
+
+<span class="token keyword">const</span> temporaryPools = [
+  tVector2, tRectangle, tLine
+]
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> releaseTemporaryPools() {
+  <span class="token keyword">for</span> (<span class="token keyword">const</span> pool <span class="token keyword">of</span> temporaryPools) pool.release()
+}</pre></div><h2>Links</h2><ul><li><a href="https://gameprogrammingpatterns.com/object-pool.html" target="_blank" rel="noreferrer">Object Pool · Optimization Patterns · Game Programming Patterns</a></li></ul></main><div class="bar"><a href="building-blocks.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#11" class="center NavigationLink">11</a> <a href="renderer.html" class="right NavigationLink">Next</a></div></body></html>

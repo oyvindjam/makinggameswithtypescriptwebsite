@@ -1,0 +1,50 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Game loop | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="audio.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#20" class="center NavigationLink">20</a> <a href="level.html" class="right NavigationLink">Next</a></div><main><h1>Game loop</h1><p>Games usually have a main game loop.</p><pre class="InlineCode">
+<span class="token keyword">function</span> gameLoop() {
+  <span class="token keyword">while</span>(<span class="token boolean">true</span>) {
+    updateGame()
+    drawGame()
+  }
+}
+gameLoop()
+</pre><p>This does not work in browsers since it freezes the application.</p><pre class="InlineCode">
+<span class="token keyword">function</span> gameLoop() {
+  updateGame()
+  drawGame()
+  requestAnimationFrame(gameLoop)
+}
+gameLoop()
+</pre><p>With <i>requestAnimationFrame</i> we can request that the gameLoop function should be called the next time the browser can redraw. This prevents our application from freezing since the browser will regain control and process pending events.</p><h2>Update interval</h2><p>The game is updated at a fixed timestep, however, when using <i>requestAnimationFrame</i> the time between each call is not constant.</p><div class="CodeDisplay"><header>src/GameUpdater.ts</header><pre><span class="token keyword">import</span> { gameUpdate, gameDraw } <span class="token keyword">from</span> <span class="token string">&quot;./main&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> GameUpdater {
+  <span class="token keyword"><span class="token keyword">private</span></span> accumulatedTime = 0
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">readonly</span> timeStepSeconds: number,
+    <span class="token keyword"><span class="token keyword">private</span></span> maxUpdatesAllowed: number
+  ) { }
+
+  update(delta: number) {
+    this.accumulatedTime += delta
+    <span class="token keyword">if</span> (this.accumulatedTime &gt; this.timeStepSeconds * this.maxUpdatesAllowed) {
+      this.accumulatedTime = this.timeStepSeconds * this.maxUpdatesAllowed
+    }
+
+    <span class="token keyword">while</span> (this.accumulatedTime &gt;= this.timeStepSeconds) {
+      this.accumulatedTime -= this.timeStepSeconds
+      gameUpdate(this.timeStepSeconds)
+    }
+    gameDraw()
+  }
+}</pre></div><p>The <i>GameUpdater</i> class tries to update the game at the target timestep and will either skip updates if we are running too fast or try to catch up by doing multiple updates if we are running too slow.</p><div class="CodeDisplay"><header>src/gameLoop.ts</header><pre><span class="token keyword">import</span> { GameUpdater } <span class="token keyword">from</span> <span class="token string">&quot;./GameUpdater&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> startGameLoop(gameUpdater: GameUpdater) {
+    <span class="token keyword">let</span> lastTimeGameLoop = performance.now() - gameUpdater.timeStepSeconds
+
+    <span class="token keyword">const</span> gameLoop = (time: number) =&gt; {
+        <span class="token keyword">const</span> delta = (time - lastTimeGameLoop) / 1000
+        lastTimeGameLoop = time
+        gameUpdater.update(delta)
+        requestAnimationFrame(gameLoop)
+    }
+    gameLoop(performance.now())
+}</pre></div><h2>Links</h2><ul><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame" target="_blank" rel="noreferrer">window.requestAnimationFrame() - Web APIs | MDN</a></li><li><a href="https://medium.com/@tglaiel/how-to-make-your-game-run-at-60fps-24c61210fe75" target="_blank" rel="noreferrer">How to make your game run at 60fps – Tyler Glaiel – Medium</a></li><li><a href="https://www.gameprogrammingpatterns.com/update-method.html" target="_blank" rel="noreferrer">Update Method · Sequencing Patterns · Game Programming Patterns</a></li><li><a href="https://www.gameprogrammingpatterns.com/game-loop.html" target="_blank" rel="noreferrer">Game Loop · Sequencing Patterns · Game Programming Patterns</a></li></ul></main><div class="bar"><a href="audio.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#20" class="center NavigationLink">20</a> <a href="level.html" class="right NavigationLink">Next</a></div></body></html>

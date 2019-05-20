@@ -1,0 +1,83 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="Description" content="Implementing frame based animation"><title>Animation | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="texture-atlas.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#25" class="center NavigationLink">25</a> <a href="nine-patch.html" class="right NavigationLink">Next</a></div><main><h1>Animation</h1><p>We are going to implement frame based animation.</p><div class="figurecontainer"><figure><img src="animation.gif" alt="Multiple buffer sources connected to the global gain node that is connected to the audioContext.dest which goes to the speaker"><figcaption><div>Player idle animation</div></figcaption></figure></div><p>The animation above has six frames of the main character drawn with slight variation. By quickly looping through them the main character comes to life.</p><div class="CodeDisplay"><header>src/Frame.ts</header><pre><span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Frame {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">readonly</span> seconds: number,
+    <span class="token keyword">readonly</span> sprite: Rectangle
+  ) { }
+}</pre></div><p>We create the <i>Frame</i> class that holds information about how many seconds it should last and which sprite to draw.</p><div class="CodeDisplay"><header>src/Animation.ts</header><pre><span class="token keyword">import</span> { Frame } <span class="token keyword">from</span> <span class="token string">&quot;./Frame&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">enum</span> AnimationMode {
+  loop, once
+}
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Animation {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">public</span> mode: AnimationMode,
+    <span class="token keyword">public</span> frames: Frame[]
+  ) { }
+}</pre></div><p>The <i>Animation</i> class contains a list of frames that should be drawn in sequence. The <i>AnimationMode</i> determines if the animations should loop or only play once and stop at the last frame. The looping mode is useful for things like running animations where we want to repeat the animation as long as the player is running. The play once mode can be used in cases when we want to stop at the last frame for example the player death animation.</p><div class="CodeDisplay"><header>src/AnimationPlayer.ts</header><pre><span class="token keyword">import</span> { Animation, AnimationMode } <span class="token keyword">from</span> <span class="token string">&quot;./Animation&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> AnimationPlayer {
+  <span class="token keyword"><span class="token keyword">private</span></span> time = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> currentFrame = 0
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">public</span> animation: Animation
+  ) { }
+
+  update(delta: number) {
+    this.time += delta
+    <span class="token keyword">const</span> frame = this.animation.frames[this.currentFrame]
+    <span class="token keyword">if</span> (this.time &gt;= frame.seconds) {
+      this.time -= frame.seconds
+      this.nextFrame()
+    }
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> nextFrame() {
+    this.currentFrame++
+    <span class="token keyword">if</span> (this.currentFrame &gt;= this.animation.frames.length) {
+      <span class="token keyword">if</span> (this.animation.mode == AnimationMode.once) {
+        this.currentFrame = this.animation.frames.length - 1
+      }
+      <span class="token keyword">else</span> this.currentFrame = 0
+    }
+  }
+
+  setAnimation(animation: Animation) {
+    this.animation = animation
+    this.reset()
+  }
+
+  currentSprite() {
+    <span class="token keyword">if</span> (this.currentFrame &gt;= this.animation.frames.length) {
+      <span class="token keyword">throw</span> <span class="token keyword">new</span> Error(<span class="token string">&quot;Tried to get frame outside the range <span class="token keyword">of</span> the animation&quot;</span>)
+    }
+    <span class="token keyword">return</span> this.animation.frames[this.currentFrame].sprite
+  }
+
+  reset() {
+    this.time = 0
+    this.currentFrame = 0
+  }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> switchAnimation(
+  animation: Animation,
+  animationPlayer: AnimationPlayer
+) {
+  <span class="token keyword">if</span> (animationPlayer.animation != animation) {
+    animationPlayer.setAnimation(animation)
+  }
+}</pre></div><p>The <i>AnimationPlayer</i> will play the animation and keep track of the current frame depending on the mode of the animation.</p><p>We now have a functioning animation system and we only need to create the animations. Creating the animation shown above we can use the code below.</p><pre class="InlineCode">
+<span class="token keyword">const</span> idle = <span class="token keyword">new</span> Animation(AnimationMode.loop, [
+  <span class="token keyword">new</span> Frame(0.1, SpriteSheet.guy0),
+  <span class="token keyword">new</span> Frame(0.1, SpriteSheet.guy1),
+  <span class="token keyword">new</span> Frame(0.1, SpriteSheet.guy2),
+  <span class="token keyword">new</span> Frame(0.1, SpriteSheet.guy3),
+  <span class="token keyword">new</span> Frame(0.1, SpriteSheet.guy4),
+  <span class="token keyword">new</span> Frame(0.1, SpriteSheet.guy5),
+])
+<span class="token keyword">const</span> animationPlayer = <span class="token keyword">new</span> AnimationPlayer(idle)
+</pre></main><div class="bar"><a href="texture-atlas.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#25" class="center NavigationLink">25</a> <a href="nine-patch.html" class="right NavigationLink">Next</a></div></body></html>

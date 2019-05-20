@@ -1,0 +1,373 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Main | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="background.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#35" class="center NavigationLink">35</a> <a href="frameworks.html" class="right NavigationLink">Next</a></div><main><h1>Main</h1><div class="CodeDisplay"><header>src/main.ts</header><pre><span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { Entity, Updatable, Drawable, Collidable } <span class="token keyword">from</span> <span class="token string">&quot;./entity&quot;</span>
+<span class="token keyword">import</span> { AudioSystem } <span class="token keyword">from</span> <span class="token string">&quot;./AudioSystem&quot;</span>
+<span class="token keyword">import</span> { KeyController } <span class="token keyword">from</span> <span class="token string">&quot;./KeyController&quot;</span>
+<span class="token keyword">import</span> { Player } <span class="token keyword">from</span> <span class="token string">&quot;./Player&quot;</span>
+<span class="token keyword">import</span> { GraphicsRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./GraphicsRenderer&quot;</span>
+<span class="token keyword">import</span> { Persistence } <span class="token keyword">from</span> <span class="token string">&quot;./persistence&quot;</span>
+<span class="token keyword">import</span> { level1 } <span class="token keyword">from</span> <span class="token string">&quot;./Level1&quot;</span>
+<span class="token keyword">import</span> { Projectile } <span class="token keyword">from</span> <span class="token string">&quot;./Projectile&quot;</span>
+<span class="token keyword">import</span> { PointerController } <span class="token keyword">from</span> <span class="token string">&quot;./PointerController&quot;</span>
+<span class="token keyword">import</span> { tileSize, worldHeight, worldWidth } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { GraphicsWebGL } <span class="token keyword">from</span> <span class="token string">&quot;./GraphicsWebGL&quot;</span>
+<span class="token keyword">import</span> { GamepadController } <span class="token keyword">from</span> <span class="token string">&quot;./GamepadController&quot;</span>
+<span class="token keyword">import</span> { ScreenShaker } <span class="token keyword">from</span> <span class="token string">&quot;./ScreenShake&quot;</span>
+<span class="token keyword">import</span> { BasketPlacer, WeaponPicker, Basket } <span class="token keyword">from</span> <span class="token string">&quot;./Basket&quot;</span>
+<span class="token keyword">import</span> { GraphicsContext2D } <span class="token keyword">from</span> <span class="token string">&quot;./GraphicsContext2d&quot;</span>
+<span class="token keyword">import</span> { GraphicsBackend } <span class="token keyword">from</span> <span class="token string">&quot;./GraphicsBackend&quot;</span>
+<span class="token keyword">import</span> { CookieNotice } <span class="token keyword">from</span> <span class="token string">&quot;./CookieNotice&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { PlayerController } <span class="token keyword">from</span> <span class="token string">&quot;./PlayerController&quot;</span>
+<span class="token keyword">import</span> { doRectanglesOverlap } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>
+<span class="token keyword">import</span> { basketPickup } <span class="token keyword">from</span> <span class="token string">&quot;./sounds&quot;</span>
+<span class="token keyword">import</span> { ParticleSystem } <span class="token keyword">from</span> <span class="token string">&quot;./ParticleSystem&quot;</span>
+<span class="token keyword">import</span> { EventSystem } <span class="token keyword">from</span> <span class="token string">&quot;./EventSystem&quot;</span>
+<span class="token keyword">import</span> { BulletSystem } <span class="token keyword">from</span> <span class="token string">&quot;./BulletSystem&quot;</span>
+<span class="token keyword">import</span> { EnemySpawner } <span class="token keyword">from</span> <span class="token string">&quot;./EnemySpawner&quot;</span>
+<span class="token keyword">import</span> { Knife } <span class="token keyword">from</span> <span class="token string">&quot;./Knife&quot;</span>
+<span class="token keyword">import</span> { Pistol } <span class="token keyword">from</span> <span class="token string">&quot;./Pistol&quot;</span>
+<span class="token keyword">import</span> { MachineGun } <span class="token keyword">from</span> <span class="token string">&quot;./MachineGun&quot;</span>
+<span class="token keyword">import</span> { HandCannon } <span class="token keyword">from</span> <span class="token string">&quot;./HandCannon&quot;</span>
+<span class="token keyword">import</span> { Controller } <span class="token keyword">from</span> <span class="token string">&quot;./Controller&quot;</span>
+<span class="token keyword">import</span> { drawText, measureTextWidth } <span class="token keyword">from</span> <span class="token string">&quot;./TextRendering&quot;</span>
+<span class="token keyword">import</span> { NinePatch } <span class="token keyword">from</span> <span class="token string">&quot;./NinePatch&quot;</span>
+<span class="token keyword">import</span> { drawNinePatch } <span class="token keyword">from</span> <span class="token string">&quot;./drawNinePatch&quot;</span>;
+<span class="token keyword">import</span> { ScaleRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./ScaleRenderer&quot;</span>;
+<span class="token keyword">import</span> { startGameLoop } <span class="token keyword">from</span> <span class="token string">&quot;./gameLoop&quot;</span>;
+<span class="token keyword">import</span> { GameUpdater } <span class="token keyword">from</span> <span class="token string">&quot;./GameUpdater&quot;</span>;
+<span class="token keyword">import</span> { tVector2, tRectangle, tLine } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+<span class="token keyword">import</span> { releaseTemporaryPools } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+<span class="token keyword">import</span> { ClipRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./ClipRenderer&quot;</span>;
+<span class="token keyword">import</span> { TranslationRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./TranslationRenderer&quot;</span>;
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+<span class="token keyword">import</span> { Line } <span class="token keyword">from</span> <span class="token string">&quot;./Line&quot;</span>;
+/*
+// TO ship
+make enemy bump back when hit
+make enemy take damage instead <span class="token keyword">of</span> instantly die
+start menu screen
+die menu screen
+die animation
+sound land
+sound run
+sound hit enemy
+sound die
+graphics sides
+
+bullets need to be offset in x when created to they do not get spawned behind the weapon
+reset the weapon to knife and reset the weapon picker
+Support multiple texture atlases
+Create concept <span class="token keyword">of</span> sprites
+Should not be able to jump right after starting when still in air
+*/
+
+document.head.appendChild(document.createRange().createContextualFragment(<span class="token string">`&lt;meta name=<span class="token string">&quot;viewport&quot;</span> content=<span class="token string">&quot;width=device-width, initial-scale=1&quot;</span>&gt;`</span>))
+document.body.style.margin = <span class="token string">&quot;0&quot;</span>
+document.body.style.overflow = <span class="token string">&quot;hidden&quot;</span>
+<span class="token keyword">const</span> canvas = document.createElement(<span class="token string">&quot;canvas&quot;</span>)
+document.body.style.touchAction = <span class="token string">&quot;none&quot;</span>
+document.body.appendChild(canvas)
+<span class="token keyword">function</span> resizeCanvas() {
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+}
+window.addEventListener(<span class="token string">&quot;resize&quot;</span>, resizeCanvas)
+resizeCanvas()
+
+
+
+<span class="token keyword">function</span> startNewGame() {
+  // TODO BUG: <span class="token keyword">if</span> a enemy is in contact with the player when the game resets after death then the player will die again since enemies gets <span class="token string">&#39;remove&#39;</span>d at end <span class="token keyword">of</span> frame
+  <span class="token keyword">for</span> (<span class="token keyword">const</span> enemy <span class="token keyword">of</span> enemies) enemy.getHitBy(tVector2.get(0, 0), 20)
+  player.dead = <span class="token boolean">false</span>
+  score = 0
+  player.position.x = level.playerStartLocation.x
+  player.position.y = level.playerStartLocation.y
+  addNewBasket()
+}
+
+<span class="token keyword">const</span> uiNinePatch = <span class="token keyword">new</span> NinePatch(
+  TextureAtlas.uiTopLeft, TextureAtlas.uiTopCenter, TextureAtlas.uiTopRight,
+  TextureAtlas.uiMiddleLeft, TextureAtlas.uiMiddleCenter, TextureAtlas.uiMiddleRight,
+  TextureAtlas.uiBottomLeft, TextureAtlas.uiBottomCenter, TextureAtlas.uiBottomRight,
+)
+
+<span class="token keyword">const</span> bulletSystem = <span class="token keyword">new</span> BulletSystem
+<span class="token keyword">const</span> level = level1
+
+<span class="token keyword">const</span> persistence = <span class="token keyword">new</span> Persistence()
+<span class="token keyword">if</span> (!persistence.allowStorage) {
+  <span class="token keyword">new</span> CookieNotice(() =&gt; persistence.userAllowedStorage())
+}
+
+<span class="token keyword">let</span> score = 0
+<span class="token keyword">let</span> highscore = persistence.getScore()
+
+<span class="token keyword">const</span> audioSystem = <span class="token keyword">new</span> AudioSystem()
+<span class="token keyword">const</span> pickupBasket = audioSystem.load(basketPickup)
+
+<span class="token keyword">const</span> image = <span class="token keyword">new</span> Image
+image.src = require(<span class="token string">&quot;./assets/graphics.png&quot;</span>)
+
+<span class="token keyword">const</span> graphicsBackend = selectGraphicsBackend()
+
+<span class="token keyword">const</span> renderer = <span class="token keyword">new</span> GraphicsRenderer(graphicsBackend)
+
+<span class="token keyword">const</span> translationRenderer = <span class="token keyword">new</span> TranslationRenderer(renderer)
+<span class="token keyword">const</span> scaleRenderer = <span class="token keyword">new</span> ScaleRenderer(translationRenderer)
+<span class="token keyword">const</span> clipRenderer = <span class="token keyword">new</span> ClipRenderer(scaleRenderer)
+
+
+updateCameraRenderer()
+
+<span class="token keyword">const</span> spriteRenderer = <span class="token keyword">new</span> SpriteRenderer(clipRenderer, image)
+
+
+<span class="token keyword">const</span> particleSystem = <span class="token keyword">new</span> ParticleSystem()
+<span class="token keyword">const</span> enemies: Entity[] = []
+<span class="token keyword">const</span> screenShaker = <span class="token keyword">new</span> ScreenShaker()
+
+<span class="token keyword">const</span> weapons = [
+  <span class="token keyword">new</span> Knife(spriteRenderer, enemies),
+  <span class="token keyword">new</span> Pistol(spriteRenderer, bulletSystem, enemies, audioSystem),
+  <span class="token keyword">new</span> MachineGun(spriteRenderer, bulletSystem, screenShaker, enemies, audioSystem),
+  <span class="token keyword">new</span> HandCannon(spriteRenderer, bulletSystem, screenShaker, enemies, audioSystem)
+]
+
+<span class="token keyword">const</span> player = <span class="token keyword">new</span> Player(audioSystem, level, screenShaker, particleSystem, spriteRenderer, enemies, weapons[0])
+
+<span class="token keyword">let</span> enemiesToRemove: Entity[] = []
+<span class="token keyword">export</span> <span class="token keyword">function</span> removeEnemy(entity: Entity) {
+  enemiesToRemove.push(entity)
+}
+
+<span class="token keyword">let</span> enemiesToAdd: Entity[] = []
+<span class="token keyword">export</span> <span class="token keyword">function</span> addEnemy(entity: Entity) {
+  enemiesToAdd.push(entity)
+}
+<span class="token keyword">const</span> enemySpawner = <span class="token keyword">new</span> EnemySpawner(enemies, spriteRenderer, level)
+<span class="token keyword">const</span> basketPlacer = <span class="token keyword">new</span> BasketPlacer(level, player)
+
+<span class="token keyword">const</span> weaponPicker = <span class="token keyword">new</span> WeaponPicker(weapons)
+<span class="token keyword">let</span> basket: Basket | <span class="token boolean">null</span> = <span class="token boolean">null</span>
+
+<span class="token keyword">function</span> addNewBasket() {
+  <span class="token keyword">const</span> position = basketPlacer.randomLocation()
+  <span class="token keyword">const</span> weapon = weaponPicker.nextWeapon()
+  basket = <span class="token keyword">new</span> Basket(weapon, position)
+}
+
+addNewBasket()
+
+<span class="token keyword">function</span> selectGraphicsBackend(): GraphicsBackend {
+  <span class="token keyword">try</span> { <span class="token keyword">return</span> <span class="token keyword">new</span> GraphicsWebGL(canvas) } <span class="token keyword">catch</span>(_) {}
+  <span class="token keyword">try</span> { <span class="token keyword">return</span> <span class="token keyword">new</span> GraphicsContext2D(canvas) } <span class="token keyword">catch</span>(_) {}
+  <span class="token keyword">throw</span> <span class="token keyword">new</span> Error(<span class="token string">&quot;No graphics backend supported&quot;</span>)
+}
+
+<span class="token keyword">class</span> GameController <span class="token keyword">implements</span> Controller {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> player: Player,
+    <span class="token keyword"><span class="token keyword">private</span></span> playerController: PlayerController,
+  ) { }
+
+  pressLeft() { <span class="token keyword">if</span> (!this.player.dead) this.playerController.pressLeft() }
+  releaseLeft() { <span class="token keyword">if</span> (!this.player.dead) this.playerController.releaseLeft() }
+
+  pressRight() { <span class="token keyword">if</span> (!this.player.dead) this.playerController.pressRight() }
+  releaseRight() { <span class="token keyword">if</span> (!this.player.dead) this.playerController.releaseRight() }
+
+  pressActionButton1() { <span class="token keyword">if</span> (!this.player.dead) this.playerController.pressActionButton1() }
+  releaseActionButton1() { <span class="token keyword">if</span> (!this.player.dead) this.playerController.releaseActionButton1() }
+
+  pressActionButton2() {
+    <span class="token keyword">if</span> (!this.player.dead) this.playerController.pressActionButton2()
+    <span class="token keyword">else</span> startNewGame()
+  }
+  releaseActionButton2() { <span class="token keyword">if</span> (!this.player.dead) this.playerController.releaseActionButton2() }
+}
+
+<span class="token keyword">const</span> playerController = <span class="token keyword">new</span> PlayerController(player)
+<span class="token keyword">const</span> controller = <span class="token keyword">new</span> GameController(player, playerController)
+<span class="token keyword">new</span> KeyController(controller,
+  [<span class="token string">&quot;KeyA&quot;</span>, <span class="token string">&quot;ArrowLeft&quot;</span>],
+  [<span class="token string">&quot;KeyD&quot;</span>, <span class="token string">&quot;ArrowRight&quot;</span>],
+  [<span class="token string">&quot;KeyW&quot;</span>, <span class="token string">&quot;KeyX&quot;</span>, <span class="token string">&quot;KeyK&quot;</span>, <span class="token string">&quot;ArrowUp&quot;</span>, <span class="token string">&quot;Space&quot;</span>],
+  [<span class="token string">&quot;KeyJ&quot;</span>, <span class="token string">&quot;KeyZ&quot;</span>])
+<span class="token keyword">const</span> pointerController = <span class="token keyword">new</span> PointerController(controller, canvas, scaleRenderer, translationRenderer)
+<span class="token keyword">new</span> GamepadController(controller)
+
+<span class="token keyword">const</span> projectiles: Projectile[] = []
+<span class="token keyword">const</span> eventSystem = <span class="token keyword">new</span> EventSystem
+
+<span class="token keyword">const</span> updatables: Updatable[] = []
+<span class="token keyword">const</span> drawables: Drawable[] = []
+<span class="token keyword">const</span> collidable: Collidable[] = []
+
+updatables; drawables; collidable // TODO Do I want to do this?
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> submitScore() {
+  <span class="token keyword">if</span> (score &gt; highscore) {
+    highscore = score
+    persistence.saveScore(highscore)
+  }
+}
+
+<span class="token keyword">function</span> drawMenu() {
+  <span class="token keyword">let</span> boxWidth = 150
+
+  drawNinePatch(tRectangle.get(worldWidth / 2 - boxWidth / 2, 50, boxWidth, 50), uiNinePatch, spriteRenderer)
+
+  <span class="token keyword">let</span> text = <span class="token string">&quot;highscore&quot;</span>
+  drawText(worldWidth / 2 - measureTextWidth(text) / 2, 60, text, spriteRenderer)
+
+  text = highscore.toString()
+  drawText(worldWidth / 2 - measureTextWidth(text) / 2, 80, text, spriteRenderer)
+
+  drawNinePatch(tRectangle.get(worldWidth / 2 - boxWidth / 2, 110, boxWidth, 30), uiNinePatch, spriteRenderer)
+
+  text = <span class="token string">&quot;Shoot to start&quot;</span>
+  drawText(worldWidth / 2 - measureTextWidth(text) / 2, 120, text, spriteRenderer)
+}
+
+<span class="token keyword">function</span> drawBackground() {
+  <span class="token keyword">const</span> background = TextureAtlas[<span class="token string">&quot;#5fcde4&quot;</span>]
+  <span class="token keyword">const</span> screen = tRectangle.get(0, 0, worldWidth, worldHeight)
+  clipRenderer.image(screen, background, image, <span class="token boolean">false</span>)
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> gameDraw() {
+  graphicsBackend.clear(32, 32, 32)
+  clipRenderer.clip(tRectangle.get(0, 0, worldWidth, worldHeight))
+
+  drawBackground()
+
+  <span class="token keyword">for</span> (<span class="token keyword">let</span> row = level.map.length - 1; row &gt;= 0; row--) {
+    <span class="token keyword">for</span> (<span class="token keyword">let</span> column = 0; column &lt; level.map[row].length; column++) {
+      <span class="token keyword">const</span> sprite = level.map[row][column]
+      <span class="token keyword">if</span> (sprite) spriteRenderer.sprite(column * tileSize, row * tileSize, sprite)
+    }
+  }
+
+  <span class="token keyword">for</span> (<span class="token keyword">const</span> enemy <span class="token keyword">of</span> enemies) enemy.draw()
+  bulletSystem.draw()
+  player.draw()
+  particleSystem.draw()
+
+  <span class="token keyword">for</span> (<span class="token keyword">const</span> projectile <span class="token keyword">of</span> projectiles) spriteRenderer.sprite(projectile.x, projectile.y, TextureAtlas.pistolBullet, projectile.direction == - 1)
+
+  drawText(worldWidth / 2 - measureTextWidth(score.toString()) / 2, 2, score.toString(), spriteRenderer)
+
+  <span class="token keyword">if</span> (basket) spriteRenderer.sprite(basket.position.x, basket.position.y, basket.sprite)
+
+  pointerController.draw(spriteRenderer)
+
+  <span class="token keyword">if</span> (player.dead) drawMenu()
+
+  graphicsBackend.present()
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> drawDebugCollision() {
+  <span class="token keyword">for</span> (<span class="token keyword">let</span> i = 0; i &lt; level.map[0].length; i++) {
+    spriteRenderer.sprite2(tRectangle.get(i*16, 0, 1, worldHeight), TextureAtlas[<span class="token string">&quot;#8a6f30&quot;</span>])
+  }
+  <span class="token keyword">for</span> (<span class="token keyword">let</span> i = 0; i &lt; level.map.length; i++) {
+    spriteRenderer.sprite2(tRectangle.get(0, i * 16, worldWidth, 1), TextureAtlas[<span class="token string">&quot;#8a6f30&quot;</span>])
+  }
+
+
+  <span class="token keyword">function</span> drawLine(line: Line, sprite: Rectangle) {
+    <span class="token keyword">const</span> minX = Math.min(line.p0.x, line.p1.x)
+    <span class="token keyword">const</span> maxX = Math.max(line.p0.x, line.p1.x)
+    <span class="token keyword">const</span> minY = Math.min(line.p0.y, line.p1.y)
+    <span class="token keyword">const</span> maxY = Math.max(line.p0.y, line.p1.y)
+
+
+    <span class="token keyword">const</span> p0ToP1 = tVector2.get(maxX - minX, maxY - minY)
+
+    <span class="token keyword">const</span> width = Math.max(1, p0ToP1.x * tileSize)
+    <span class="token keyword">const</span> height = Math.max(1, p0ToP1.y * tileSize)
+    
+    <span class="token keyword">const</span> rect = <span class="token keyword">new</span> Rectangle(
+      minX * tileSize,
+      minY * tileSize,
+      width,
+      height)
+    
+    spriteRenderer.sprite2(rect, sprite)
+  }
+
+  <span class="token keyword">for</span> (<span class="token keyword">const</span> line <span class="token keyword">of</span> level.collisionLines) {
+
+    <span class="token keyword">const</span> p0ToP1 = tVector2.get(line.p1.x - line.p0.x,line.p1.y - line.p0.y)
+    <span class="token keyword">const</span> ortho = tLine.get(
+      line.p0,
+      tVector2.get(
+        line.p0.x + (p0ToP1.y),
+        line.p0.y + (-p0ToP1.x)
+        )
+    )
+    drawLine(ortho, TextureAtlas[<span class="token string">&quot;#d77bba&quot;</span>])
+
+    drawLine(line, TextureAtlas[<span class="token string">&quot;#fbf236&quot;</span>])
+
+    
+  }
+}
+
+
+<span class="token keyword">export</span> <span class="token keyword">enum</span> GameState {
+  menu, playing
+}
+
+<span class="token keyword">function</span> updateCameraRenderer() {
+  scaleRenderer.scale = Math.min(window.innerWidth / worldWidth, window.innerHeight / worldHeight)
+  <span class="token keyword">if</span> (scaleRenderer.scale &gt; 1) scaleRenderer.scale = Math.floor(scaleRenderer.scale)
+  translationRenderer.xOffset = Math.round(window.innerWidth / 2 - (worldWidth * scaleRenderer.scale) / 2)
+  translationRenderer.yOffset = Math.round(window.innerHeight / 2 - (worldHeight * scaleRenderer.scale) / 2)
+}
+
+<span class="token keyword">export</span> <span class="token keyword">let</span> gameState = GameState.menu
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> gameUpdate(delta: number) {
+  releaseTemporaryPools()
+
+  updateCameraRenderer()
+  
+  eventSystem.update(delta)
+  particleSystem.update(delta)
+
+  screenShaker.update(delta)
+  translationRenderer.xOffset += Math.round(screenShaker.x * scaleRenderer.scale)
+  translationRenderer.yOffset += Math.round(screenShaker.y * scaleRenderer.scale)
+
+  player.update(delta)
+
+  // TODO this check should be done in the basket
+  <span class="token keyword">if</span> (basket) {
+    <span class="token keyword">const</span> playerRect = tRectangle.get(player.position.x, player.position.y, tileSize, tileSize)
+    <span class="token keyword">const</span> basketRect = tRectangle.get(basket.position.x, basket.position.y, basket.sprite.width, basket.sprite.height)
+    <span class="token keyword">if</span> (doRectanglesOverlap(playerRect, basketRect)) {
+      audioSystem.play(pickupBasket)
+      player.setWeapon(basket.weapon)
+      score++
+      basket = <span class="token boolean">null</span>
+      eventSystem.register(1, () =&gt; addNewBasket())
+    }
+  }
+
+  <span class="token keyword">for</span> (<span class="token keyword">const</span> enemy <span class="token keyword">of</span> enemies) enemy.update(delta)
+  <span class="token keyword">for</span>(<span class="token keyword">const</span> enemy <span class="token keyword">of</span> enemiesToRemove) {
+    <span class="token keyword">const</span> index = enemies.indexOf(enemy)
+    <span class="token keyword">if</span> (index != -1) enemies.splice(index, 1)
+  }
+  enemiesToRemove.length = 0
+
+  enemies.push(...enemiesToAdd)
+  enemiesToAdd.length = 0
+
+  bulletSystem.update(delta)
+  <span class="token keyword">if</span> (!player.dead) enemySpawner.update(delta)
+}
+
+startGameLoop(<span class="token keyword">new</span> GameUpdater(0.016, 3))</pre></div></main><div class="bar"><a href="background.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#35" class="center NavigationLink">35</a> <a href="frameworks.html" class="right NavigationLink">Next</a></div></body></html>

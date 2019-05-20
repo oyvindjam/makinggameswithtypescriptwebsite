@@ -1,0 +1,84 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Baskets | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="level.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#22" class="center NavigationLink">22</a> <a href="saving-and-loading.html" class="right NavigationLink">Next</a></div><main><h1>Baskets</h1><p>Picking up fruit baskets increase the score, however, it switches the player's weapon.</p><img src="basket.png" alt="A fruit basket" class="SpriteImage"><div class="CodeDisplay"><header>src/basket.ts</header><pre><span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { Level } <span class="token keyword">from</span> <span class="token string">&quot;./Level&quot;</span>
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { Weapon } <span class="token keyword">from</span> <span class="token string">&quot;./weapons&quot;</span>
+<span class="token keyword">import</span> { shuffle } <span class="token keyword">from</span> <span class="token string">&quot;./array&quot;</span>
+<span class="token keyword">import</span> { doRectanglesOverlap } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>
+<span class="token keyword">import</span> { tileSize } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { Player } <span class="token keyword">from</span> <span class="token string">&quot;./Player&quot;</span>
+<span class="token keyword">import</span> { tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Basket {
+  sprite = TextureAtlas.basket
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">public</span> weapon: Weapon,
+    <span class="token keyword">public</span> position: Vector2
+  ) { }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> BasketPlacer {
+
+  <span class="token keyword"><span class="token keyword">private</span></span> spawnLocations: Vector2[] = []
+
+  <span class="token keyword">constructor</span>(
+    level: Level,
+    <span class="token keyword"><span class="token keyword">private</span></span> playerEntity: Player
+  ) {
+    <span class="token keyword">for</span> (<span class="token keyword">let</span> row = 0; row &lt; level.spawnBasketLocations.length; row++) {
+      <span class="token keyword">for</span> (<span class="token keyword">let</span> column = 0; column &lt; level.spawnBasketLocations[row].length; column++) {
+        <span class="token keyword">if</span> (level.spawnBasketLocations[row][column] == 1) {
+          this.spawnLocations.push(<span class="token keyword">new</span> Vector2(column * tileSize, row * tileSize))
+        }
+      }
+    }
+  }
+
+  randomLocation() {
+    <span class="token keyword">const</span> playerRect = tRectangle.get(this.playerEntity.position.x - tileSize, this.playerEntity.position.y - tileSize, tileSize * 3, tileSize * 3)
+    <span class="token keyword">const</span> freeLocations = this.spawnLocations.filter(location =&gt; !doRectanglesOverlap(playerRect, tRectangle.get(location.x, location.y, tileSize, tileSize)))
+    <span class="token keyword">const</span> index = Math.floor(Math.random() * freeLocations.length)
+    <span class="token keyword">return</span> freeLocations[index]
+  }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> WeaponPicker {
+
+  <span class="token keyword"><span class="token keyword">private</span></span> index = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> <span class="token keyword">readonly</span> weapons: Weapon[]
+  <span class="token keyword"><span class="token keyword">private</span></span> currentWeapon: Weapon
+
+  <span class="token keyword">constructor</span>(
+    weapons: Weapon[]
+  ) {
+    this.weapons = Array.<span class="token keyword">from</span>(weapons)
+    this.currentWeapon = this.weapons[0]
+    shuffle(this.weapons)
+  }
+
+  nextWeapon(): Weapon {
+    <span class="token keyword">let</span> weapon = this.weapons[this.index++]
+    <span class="token keyword">if</span> (this.index &gt;= this.weapons.length) {
+      shuffle(this.weapons)
+      this.index = 0
+    }
+    <span class="token keyword">if</span> (this.currentWeapon == weapon) {
+      weapon = this.nextWeapon()
+    }
+    this.currentWeapon = weapon
+
+    <span class="token keyword">return</span> weapon
+  }
+}</pre></div><h2>A note about randomness</h2><p>Using completly random outcomes can in certain situeation cause the same weapon to be picked again and again this leads to is not very likely hoverver if you get a large userbase it will happen. Therefore it is often betten in games to just shuffle a sequenece of possibilites instead of just picking a random one.</p><div class="CodeDisplay"><header>src/array.ts</header><pre><span class="token keyword">export</span> <span class="token keyword">function</span> shuffled&lt;T&gt;(array: ReadonlyArray&lt;T&gt;): T[] {
+  <span class="token keyword">const</span> shuffeled = array.slice()
+  shuffle(shuffeled)
+  <span class="token keyword">return</span> shuffeled
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> shuffle&lt;T&gt;(array: T[]): void {
+  <span class="token keyword">for</span> (<span class="token keyword">let</span> i = 0; i &lt; array.length - 1; i++) {
+    <span class="token keyword">const</span> tmp = array[i]
+    <span class="token keyword">const</span> index = (i + 1) + Math.floor(Math.random() * (array.length - i - 1))
+    array[i] = array[index]
+    array[index] = tmp
+  }
+}</pre></div></main><div class="bar"><a href="level.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#22" class="center NavigationLink">22</a> <a href="saving-and-loading.html" class="right NavigationLink">Next</a></div></body></html>

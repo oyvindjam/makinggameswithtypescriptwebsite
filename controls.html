@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Controls | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="webgl.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#15" class="center NavigationLink">15</a> <a href="controls-keyboard.html" class="right NavigationLink">Next</a></div><main><h1>Controls</h1><p>We want to support different input devices like keyboard on PCs and touch on mobile. Therefore we start by creating an conceptual controller that all the different input devices will map to.</p><div class="figurecontainer"><figure class="width100 maxWidth400"><img src="controller.svg" alt="Controller with 4 buttons"><figcaption><div>4 button controller</div></figcaption></figure></div><p>The controller has 4 buttons that can be pressed or released.</p><div class="CodeDisplay"><header>src/Controller.ts</header><pre><span class="token keyword">export</span> <span class="token keyword">interface</span> Controller {
+  pressLeft(): void
+  releaseLeft(): void
+
+  pressRight(): void
+  releaseRight(): void
+
+  pressActionButton1(): void
+  releaseActionButton1(): void
+
+  pressActionButton2(): void
+  releaseActionButton2(): void
+}</pre></div></main><div class="bar"><a href="webgl.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#15" class="center NavigationLink">15</a> <a href="controls-keyboard.html" class="right NavigationLink">Next</a></div></body></html>

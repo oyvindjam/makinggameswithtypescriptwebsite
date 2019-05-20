@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="Description" content="Implementing nine patch for resizable UI"><title>9-patch | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="animation.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#26" class="center NavigationLink">26</a> <a href="text-rendering.html" class="right NavigationLink">Next</a></div><main><h1>9-patch</h1><p><i>9-Patch</i> is an easy way to create UI elements like buttons and panels that scale to any size.</p><div class="figurecontainer"><figure><img src="ui.png" alt="UI panels using nine-patch"><figcaption><div>UI panels</div></figcaption></figure></div><p><i>9-Patch</i> works by splitting an art asset into nine sections.</p><div class="figurecontainer"><figure class="width100 maxWidth300"><img src="nine_patch.svg" alt="Nine seperate boxes"><figcaption><div>9-Patch</div></figcaption></figure></div><div class="CodeDisplay"><header>src/NinePatch.ts</header><pre><span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> NinePatch {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">public</span> topLeft: Rectangle,
+    <span class="token keyword">public</span> topCenter: Rectangle,
+    <span class="token keyword">public</span> topRight: Rectangle,
+    <span class="token keyword">public</span> middleLeft: Rectangle,
+    <span class="token keyword">public</span> middleCenter: Rectangle,
+    <span class="token keyword">public</span> middleRight: Rectangle,
+    <span class="token keyword">public</span> bottomLeft: Rectangle,
+    <span class="token keyword">public</span> bottomCenter: Rectangle,
+    <span class="token keyword">public</span> bottomRight: Rectangle,
+  ) { }
+}</pre></div><p>When drawing, the middle sections (2, 4, 5, 6 and 8 in the picture below) are stretched to fill the inner area while the corners are not stretched.</p><div class="figurecontainer"><figure class="width100 maxWidth300"><img src="nine_patch_stretched.svg" alt="Stretching 9-patch sections to fill area"><figcaption><div>Stretching sections</div></figcaption></figure></div><div class="CodeDisplay"><header>src/drawNinePatch.ts</header><pre><span class="token keyword">import</span> { NinePatch } <span class="token keyword">from</span> <span class="token string">&quot;./NinePatch&quot;</span>;
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>;
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+<span class="token keyword">import</span> { tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> drawNinePatch(area: Rectangle, ninePatch: NinePatch, renderer: SpriteRenderer) {
+  <span class="token keyword">const</span> horizontalWidth = area.width - ninePatch.topLeft.width - ninePatch.topRight.width
+  <span class="token keyword">const</span> verticalHeight = area.height - ninePatch.topLeft.height - ninePatch.bottomLeft.height
+
+  <span class="token keyword">let</span> x = area.x
+  <span class="token keyword">let</span> y = area.y
+
+  <span class="token keyword">const</span> topLeft = tRectangle.get(x, y, ninePatch.topLeft.width, ninePatch.topLeft.height)
+  x += topLeft.width
+  <span class="token keyword">const</span> topCenter = tRectangle.get(x, y, horizontalWidth, topLeft.height)
+  x += topCenter.width
+  <span class="token keyword">const</span> topRight = tRectangle.get(x, y, ninePatch.topRight.width, ninePatch.topRight.height)
+  x = area.x
+  y += topLeft.height
+
+  <span class="token keyword">const</span> middleLeft = tRectangle.get(x, y, ninePatch.middleLeft.width, verticalHeight)
+  x += middleLeft.width
+  <span class="token keyword">const</span> middleCenter = tRectangle.get(x, y, horizontalWidth, verticalHeight)
+  x += middleCenter.width
+  <span class="token keyword">const</span> middleRigth = tRectangle.get(x, y, ninePatch.middleRight.width, verticalHeight)
+  x = area.x
+  y += middleLeft.height
+
+  <span class="token keyword">const</span> bottomLeft = tRectangle.get(x, y, ninePatch.bottomLeft.width, ninePatch.bottomLeft.width)
+  x += bottomLeft.width
+  <span class="token keyword">const</span> bottomCenter = tRectangle.get(x, y, horizontalWidth, ninePatch.bottomCenter.height)
+  x += bottomCenter.width
+  <span class="token keyword">const</span> bottomRight = tRectangle.get(x, y, ninePatch.bottomRight.width, ninePatch.bottomRight.height)
+
+  renderer.sprite2(topLeft, ninePatch.topLeft)
+  renderer.sprite2(topCenter, ninePatch.topCenter)
+  renderer.sprite2(topRight, ninePatch.topRight)
+  renderer.sprite2(middleLeft, ninePatch.middleLeft)
+  renderer.sprite2(middleCenter, ninePatch.middleCenter)
+  renderer.sprite2(middleRigth, ninePatch.middleRight)
+  renderer.sprite2(bottomLeft, ninePatch.bottomLeft)
+  renderer.sprite2(bottomCenter, ninePatch.bottomCenter)
+  renderer.sprite2(bottomRight, ninePatch.bottomRight)
+}</pre></div></main><div class="bar"><a href="animation.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#26" class="center NavigationLink">26</a> <a href="text-rendering.html" class="right NavigationLink">Next</a></div></body></html>

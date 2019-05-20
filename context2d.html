@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="Description" content="Implementing renderer using Context2D"><title>Context2D | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="renderer.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#13" class="center NavigationLink">13</a> <a href="webgl.html" class="right NavigationLink">Next</a></div><main><h1>Context2D</h1><p>Context2D is an easy to use drawing API.</p><div class="CodeDisplay"><header>src/GraphicsContext2d.ts</header><pre><span class="token keyword">import</span> { GraphicsBackend } <span class="token keyword">from</span> <span class="token string">&quot;./GraphicsBackend&quot;</span>
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> GraphicsContext2D <span class="token keyword">implements</span> GraphicsBackend {
+
+  <span class="token keyword"><span class="token keyword">private</span></span> context: CanvasRenderingContext2D
+  <span class="token keyword">constructor</span>(
+    canvas: HTMLCanvasElement
+  ) {
+    <span class="token keyword">const</span> context = canvas.getContext(<span class="token string">&quot;2d&quot;</span>, {alpha: <span class="token boolean">false</span>})
+    <span class="token keyword">if</span> (context == <span class="token boolean">null</span>) <span class="token keyword">throw</span> <span class="token keyword">new</span> Error(<span class="token string">&quot;Could not get 2d context&quot;</span>)
+    this.context = context
+    this.context.imageSmoothingEnabled = <span class="token boolean">false</span>
+  }
+
+  draw(dest: Rectangle, src: Rectangle, image: HTMLImageElement,
+    mirrored: boolean
+  ) {
+    <span class="token keyword">let</span> destX = dest.x
+    <span class="token keyword">let</span> destWidth = dest.width
+
+    <span class="token keyword">if</span> (mirrored) {
+      this.context.scale(-1, 1)
+      destX *= -1
+      destWidth *= -1
+    }
+    this.context.drawImage(image,
+      src.x, src.y, src.width, src.height,
+      destX, dest.y, destWidth, dest.height)
+
+    <span class="token keyword">if</span> (mirrored) this.context.scale(-1, 1)
+  }
+
+  clear(red: number, green: number, blue: number) {
+    this.context.fillStyle = <span class="token string">`rgb(${red}, ${green}, ${blue})`</span>
+    this.context.fillRect(0, 0, this.context.canvas.width,
+      this.context.canvas.height)
+  }
+  
+  present(): void {}
+}</pre></div><h2>Links</h2><ul><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D" target="_blank" rel="noreferrer">CanvasRenderingContext2D - Web APIs | MDN</a></li></ul></main><div class="bar"><a href="renderer.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#13" class="center NavigationLink">13</a> <a href="webgl.html" class="right NavigationLink">Next</a></div></body></html>

@@ -1,0 +1,320 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Player | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="weapons.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#32" class="center NavigationLink">32</a> <a href="enemies.html" class="right NavigationLink">Next</a></div><main><h1>Player</h1><div class="CodeDisplay"><header>src/Player.ts</header><pre>// If pressing jump right before landing we should be able to use that jump to jump again, (we should not have to release and press the button again)
+<span class="token keyword">import</span> { tileSize, worldHeight } <span class="token keyword">from</span> <span class="token string">&quot;./world&quot;</span>
+<span class="token keyword">import</span> { AudioSystem, AudioIdentifier } <span class="token keyword">from</span> <span class="token string">&quot;./AudioSystem&quot;</span>
+<span class="token keyword">import</span> { Weapon } <span class="token keyword">from</span> <span class="token string">&quot;./weapons&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+<span class="token keyword">import</span> { Level } <span class="token keyword">from</span> <span class="token string">&quot;./Level&quot;</span>
+<span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>
+<span class="token keyword">import</span> { doRectanglesOverlap, resolveCollision } <span class="token keyword">from</span> <span class="token string">&quot;./collission&quot;</span>
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>
+<span class="token keyword">import</span> { playerJump } <span class="token keyword">from</span> <span class="token string">&quot;./sounds&quot;</span>
+<span class="token keyword">import</span> { ScreenShaker } <span class="token keyword">from</span> <span class="token string">&quot;./ScreenShake&quot;</span>
+<span class="token keyword">import</span> { ParticleSystem, PhysicsParticle } <span class="token keyword">from</span> <span class="token string">&quot;./ParticleSystem&quot;</span>
+<span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { Entity } <span class="token keyword">from</span> <span class="token string">&quot;./entity&quot;</span>
+<span class="token keyword">import</span> { submitScore } <span class="token keyword">from</span> <span class="token string">&quot;./main&quot;</span>
+<span class="token keyword">import</span> { degreesToRadians } <span class="token keyword">from</span> <span class="token string">&quot;./math&quot;</span>
+<span class="token keyword">import</span> { AnimationPlayer, switchAnimation } <span class="token keyword">from</span> <span class="token string">&quot;./AnimationPlayer&quot;</span>;
+<span class="token keyword">import</span> { AnimationMode, Animation } <span class="token keyword">from</span> <span class="token string">&quot;./Animation&quot;</span>;
+<span class="token keyword">import</span> { Frame } <span class="token keyword">from</span> <span class="token string">&quot;./Frame&quot;</span>;
+<span class="token keyword">import</span> { tRectangle, tVector2 } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">const</span> niceJumpTime = 0.1
+<span class="token keyword">const</span> maxJumpLength = 0.2
+<span class="token keyword">const</span> jumpSpeed = 190
+
+<span class="token keyword">export</span> <span class="token keyword">enum</span> Facing {
+  left = -1, right = 1
+}
+
+// TODO I need to be able to see <span class="token keyword">if</span> I am actually in the air
+// TODO It should be possible to fire multiple bullets <span class="token keyword">if</span> we get a really long frame
+// TODO the jumping needs to be tuned better
+// TODO velocity needs to be something completely different <span class="token keyword">from</span> facing and movement  the movement since we will use it <span class="token keyword">for</span> knockbacks
+// TODO do the move stack 
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Player {
+  <span class="token keyword"><span class="token keyword">private</span></span> timeSinceStartedFalling = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> timeSinceStartedJump = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> jumped = <span class="token boolean">false</span>
+  <span class="token keyword"><span class="token keyword">private</span></span> jumping = <span class="token boolean">false</span>
+  <span class="token keyword"><span class="token keyword">private</span></span> shooting = <span class="token boolean">false</span>
+  <span class="token keyword"><span class="token keyword">private</span></span> maxRunSpeed = 135
+  <span class="token keyword"><span class="token keyword">private</span></span> idle = animations.idle
+  <span class="token keyword"><span class="token keyword">private</span></span> dieAnimation = animations.die
+  <span class="token keyword"><span class="token keyword">private</span></span> run = animations.run
+  <span class="token keyword"><span class="token keyword">private</span></span> fall = animations.fall
+  <span class="token keyword"><span class="token keyword">private</span></span> fly = animations.fly
+
+  <span class="token keyword"><span class="token keyword">private</span></span> animationPlayer = <span class="token keyword">new</span> AnimationPlayer(this.idle)
+  <span class="token keyword"><span class="token keyword">private</span></span> facingDirection = Facing.left
+  <span class="token keyword">readonly</span> position = <span class="token keyword">new</span> Vector2
+  <span class="token keyword">readonly</span> velocity = <span class="token keyword">new</span> Vector2
+  <span class="token keyword"><span class="token keyword">private</span></span> jumpSound: AudioIdentifier
+
+  dead: boolean = <span class="token boolean">false</span>
+  <span class="token keyword">readonly</span> deathTime: number = 1
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> audioSystem: AudioSystem,
+    <span class="token keyword"><span class="token keyword">private</span></span> level: Level,
+    <span class="token keyword"><span class="token keyword">private</span></span> screenShaker: ScreenShaker,
+    <span class="token keyword"><span class="token keyword">private</span></span> particleSystem: ParticleSystem,
+    <span class="token keyword"><span class="token keyword">private</span></span> renderer: SpriteRenderer,
+    <span class="token keyword"><span class="token keyword">private</span></span> enemies: Entity[],
+    <span class="token keyword"><span class="token keyword">private</span></span> weapon: Weapon,
+  ) {
+    this.jumpSound = this.audioSystem.load(playerJump)
+
+    this.position.x = level.playerStartLocation.x
+    this.position.y = level.playerStartLocation.y
+    this.velocity.y = 1
+  }
+
+
+  getBoundingRectangle() {
+    <span class="token keyword">const</span> frame = this.animationPlayer.currentSprite()
+    <span class="token keyword">return</span> tRectangle.get(this.position.x + 2, this.position.y + 3, frame.width - 5, frame.height - 6)
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> shoot() {
+    <span class="token keyword">if</span> (this.dead) <span class="token keyword">return</span>
+    this.weapon.use()
+  }
+
+  land() {
+    <span class="token keyword">if</span> (this.timeSinceStartedFalling &gt; 0.1) {
+      this.spawnLandParticles()
+      this.screenShaker.addTrauma(0.3)
+    }
+    this.timeSinceStartedFalling = 0
+    this.velocity.y = 0
+    this.jumped = <span class="token boolean">false</span>
+  }
+
+  spawnLandParticles() {
+    <span class="token keyword">const</span> particles = Math.floor(5 + Math.random() * 5)
+    <span class="token keyword">for</span> (<span class="token keyword">let</span> i = 0; i &lt; particles; i++) {
+      <span class="token keyword">const</span> angle = degreesToRadians(-90 + (Math.random() * 50 - 25))
+      <span class="token keyword">const</span> speed = 40 + (Math.random() * 10 - 5)
+
+      <span class="token keyword">const</span> velocity = <span class="token keyword">new</span> Vector2(
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed
+      )
+
+      <span class="token keyword">const</span> position = <span class="token keyword">new</span> Vector2(this.position.x + tileSize / 2, this.position.y + tileSize)
+
+      <span class="token keyword">const</span> lifeTime = 0.05 + Math.random() * 0.15
+      <span class="token keyword">const</span> particle = <span class="token keyword">new</span> PhysicsParticle(this.renderer, TextureAtlas.particle0, lifeTime, position, velocity)
+      this.particleSystem.spawn(particle)
+    }
+  }
+
+  startJump() {
+    <span class="token keyword">if</span> (this.dead) <span class="token keyword">return</span>
+    <span class="token keyword">if</span> (this.jumped) <span class="token keyword">return</span>
+
+    <span class="token keyword">if</span> (this.timeSinceStartedFalling &lt; niceJumpTime) {
+      this.velocity.y = -jumpSpeed
+      this.jumped = <span class="token boolean">true</span>
+      this.jumping = <span class="token boolean">true</span>
+      this.audioSystem.play(this.jumpSound)
+    }
+  }
+
+  stopJump() {
+    this.timeSinceStartedJump = 0
+    this.jumping = <span class="token boolean">false</span>
+  }
+
+  startShoot() {
+    this.shooting = <span class="token boolean">true</span>
+  }
+
+  stopShoot() {
+    this.shooting = <span class="token boolean">false</span>
+  }
+
+  startLeft() {
+    <span class="token keyword">if</span> (this.dead) <span class="token keyword">return</span>
+    this.velocity.x = -this.maxRunSpeed
+    this.facingDirection = Facing.left
+  }
+  stopLeft() {
+    <span class="token keyword">if</span> (this.dead) <span class="token keyword">return</span>
+    <span class="token keyword">if</span> (this.velocity.x &lt; 0) this.velocity.x = 0
+  }
+  startRight() {
+    <span class="token keyword">if</span> (this.dead) <span class="token keyword">return</span>
+    this.velocity.x = this.maxRunSpeed
+    this.facingDirection = Facing.right
+  }
+  stopRight() {
+    <span class="token keyword">if</span> (this.velocity.x &gt; 0) this.velocity.x = 0
+  }
+
+  update(delta: number) {
+
+    <span class="token keyword">if</span> (this.dead) {
+      this.animationPlayer.update(delta)
+      switchAnimation(this.dieAnimation, this.animationPlayer)
+    }
+
+    <span class="token keyword">if</span> (this.velocity.y &gt; 0) {
+      this.timeSinceStartedFalling += delta
+    }
+    <span class="token keyword">if</span> (this.jumping) {
+      this.timeSinceStartedJump += delta
+      <span class="token keyword">if</span> (this.timeSinceStartedJump &lt; maxJumpLength) {
+        this.velocity.y = -jumpSpeed
+      }
+    }
+    <span class="token keyword">if</span> (this.shooting) {
+      this.shoot()
+    }
+
+    <span class="token keyword">if</span> (!this.dead) {
+      <span class="token keyword">if</span> (this.velocity.x == 0) switchAnimation(this.idle, this.animationPlayer)
+      <span class="token keyword">else</span> switchAnimation(this.run, this.animationPlayer)
+      <span class="token keyword">if</span> (this.velocity.y &gt; 0) switchAnimation(this.fall, this.animationPlayer)
+      <span class="token keyword">if</span> (this.velocity.y &lt; 0) switchAnimation(this.fly, this.animationPlayer)
+    }
+
+    this.animationPlayer.update(delta)
+
+
+    <span class="token keyword">const</span> oldPosition = tVector2.get(this.position.x, this.position.y)
+    this.velocity.y += 550 * delta
+    this.position.x += this.velocity.x * delta
+    this.position.y += this.velocity.y * delta
+
+    <span class="token keyword">for</span> (<span class="token keyword">let</span> line <span class="token keyword">of</span> this.level.collisionLines) {
+      <span class="token keyword">const</span> newPosition = resolveCollision(oldPosition, this.position, tileSize, tileSize, line)
+      <span class="token keyword">if</span> (newPosition) {
+        <span class="token keyword">if</span> (newPosition.y &lt; this.position.y) {
+          this.land()
+        }
+        this.position.set(newPosition.x, newPosition.y)
+      }
+    }
+
+
+    <span class="token keyword">if</span> (this.position.y &gt; worldHeight) {
+      oldPosition.y = this.position.y - worldHeight
+      this.position.y = 0
+    }
+
+    this.weapon.position.x = this.position.x + tileSize * this.facingDirection
+    this.weapon.position.y = this.position.y
+    this.weapon.direction = this.facingDirection
+    this.weapon.update(delta)
+
+    <span class="token keyword">if</span> (!this.dead) {
+      <span class="token keyword">for</span> (<span class="token keyword">const</span> enemy <span class="token keyword">of</span> this.enemies) {
+        <span class="token keyword">const</span> enemyRectangle = enemy.getBoundingRectangle()
+        <span class="token keyword">if</span> (enemyRectangle) {
+          <span class="token keyword">const</span> rectangle = <span class="token keyword">new</span> Rectangle(this.position.x, this.position.y, this.animationPlayer.currentSprite().width, this.animationPlayer.currentSprite().height)
+          <span class="token keyword">if</span> (doRectanglesOverlap(rectangle, enemyRectangle)) {
+            this.die()
+          }
+        }
+      }
+    }
+  }
+
+  die() {
+    <span class="token keyword">if</span> (this.dead) <span class="token keyword">return</span>
+    // TODO when the player dies it should be tossed in the opposite direction 
+    submitScore()
+    this.velocity.x = 0
+    this.velocity.y = 0
+    this.shooting = <span class="token boolean">false</span>
+    this.jumping = <span class="token boolean">false</span>
+    this.dead = <span class="token boolean">true</span>
+  }
+
+  draw() {
+    <span class="token keyword">const</span> sprite = this.animationPlayer.currentSprite()
+    drawVerticalyWrapped(this.position.x, this.position.y, sprite, this.renderer, this.facingDirection == Facing.right)
+    this.weapon.draw()
+  }
+
+  setWeapon(weapon: Weapon) {
+    this.weapon = weapon
+    this.weapon.position.x = this.position.x + tileSize * this.facingDirection
+    this.weapon.position.y = this.position.y
+    this.weapon.direction = this.facingDirection
+    this.weapon.update(0)
+  }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> drawVerticalyWrapped(x: number, y: number, sprite: Rectangle, renderer: SpriteRenderer, mirrored: boolean = <span class="token boolean">false</span>) {
+  renderer.sprite(x, y, sprite, mirrored)
+  <span class="token keyword">if</span> (y + sprite.height &gt; worldHeight) {
+    <span class="token keyword">const</span> overflow = y + sprite.height - worldHeight
+    renderer.sprite(x, -sprite.height + overflow, sprite, mirrored)
+  }
+  <span class="token keyword">if</span> (y &lt; 0) {
+    renderer.sprite(x, worldHeight - Math.abs(y), sprite, mirrored)
+  }
+}
+
+
+
+
+<span class="token keyword">const</span> animations = {
+  run: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guyRun0),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guyRun1),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guyRun2),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guyRun3)
+    ]),
+  idle: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guy0),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guy1),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guy2),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guy3),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guy4),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guy5)
+    ]),
+
+  fall: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guyFall0)
+    ]),
+
+  fly: <span class="token keyword">new</span> Animation(AnimationMode.loop,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guyFly0)
+    ]),
+
+  die: <span class="token keyword">new</span> Animation(AnimationMode.once,
+    [
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guyDie0),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guyDie1),
+      <span class="token keyword">new</span> Frame(0.1, TextureAtlas.guyDie2),
+    ])
+}</pre></div><div class="CodeDisplay"><header>src/PlayerController.ts</header><pre><span class="token keyword">import</span> { Player } <span class="token keyword">from</span> <span class="token string">&quot;./Player&quot;</span>
+<span class="token keyword">import</span> { Controller } <span class="token keyword">from</span> <span class="token string">&quot;./Controller&quot;</span>
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> PlayerController <span class="token keyword">implements</span> Controller {
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> player: Player
+  ) { }
+
+  pressLeft() { this.player.startLeft() }
+  releaseLeft() { this.player.stopLeft() }
+
+  pressRight() { this.player.startRight() }
+  releaseRight() { this.player.stopRight() }
+
+  pressActionButton1() { this.player.startJump() }
+  releaseActionButton1() { this.player.stopJump() }
+
+  pressActionButton2() { this.player.startShoot() }
+  releaseActionButton2() { this.player.stopShoot() }
+}</pre></div><p>The PlayerController class implemenets our conceptual controller and maps all the buttons to player actions.</p></main><div class="bar"><a href="weapons.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#32" class="center NavigationLink">32</a> <a href="enemies.html" class="right NavigationLink">Next</a></div></body></html>

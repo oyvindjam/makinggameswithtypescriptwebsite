@@ -1,0 +1,57 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="Description" content="Rendering text"><title>Text rendering | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="nine-patch.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#27" class="center NavigationLink">27</a> <a href="collision-detection.html" class="right NavigationLink">Next</a></div><main><h1>Text rendering</h1><div class="figurecontainer"><figure class="blue"><img src="text_rendering.png" alt="Hello reader"><figcaption><div>Text rendering</div></figcaption></figure></div><div class="CodeDisplay"><header>src/TextRendering.ts</header><pre><span class="token keyword">import</span> { TextureAtlas } <span class="token keyword">from</span> <span class="token string">&quot;./TextureAtlas&quot;</span>
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>
+<span class="token keyword">import</span> { SpriteRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./SpriteRenderer&quot;</span>
+
+<span class="token keyword">const</span> letterSpacing = 1
+
+<span class="token keyword">const</span> glyphs: { [id: string]: Rectangle | undefined } = {
+  <span class="token string">&quot;a&quot;</span>: TextureAtlas.a, <span class="token string">&quot;b&quot;</span>: TextureAtlas.b, <span class="token string">&quot;c&quot;</span>: TextureAtlas.c,
+  <span class="token string">&quot;d&quot;</span>: TextureAtlas.d, <span class="token string">&quot;e&quot;</span>: TextureAtlas.e, <span class="token string">&quot;f&quot;</span>: TextureAtlas.f,
+  <span class="token string">&quot;g&quot;</span>: TextureAtlas.g, <span class="token string">&quot;h&quot;</span>: TextureAtlas.h, <span class="token string">&quot;i&quot;</span>: TextureAtlas.i,
+  <span class="token string">&quot;j&quot;</span>: TextureAtlas.j, <span class="token string">&quot;k&quot;</span>: TextureAtlas.k, <span class="token string">&quot;l&quot;</span>: TextureAtlas.l,
+  <span class="token string">&quot;m&quot;</span>: TextureAtlas.m, <span class="token string">&quot;n&quot;</span>: TextureAtlas.n, <span class="token string">&quot;o&quot;</span>: TextureAtlas.o,
+  <span class="token string">&quot;p&quot;</span>: TextureAtlas.p, <span class="token string">&quot;q&quot;</span>: TextureAtlas.q, <span class="token string">&quot;r&quot;</span>: TextureAtlas.r,
+  <span class="token string">&quot;s&quot;</span>: TextureAtlas.s, <span class="token string">&quot;t&quot;</span>: TextureAtlas.t, <span class="token string">&quot;u&quot;</span>: TextureAtlas.u,
+  <span class="token string">&quot;v&quot;</span>: TextureAtlas.v, <span class="token string">&quot;w&quot;</span>: TextureAtlas.w, <span class="token string">&quot;x&quot;</span>: TextureAtlas.x,
+  <span class="token string">&quot;y&quot;</span>: TextureAtlas.y, <span class="token string">&quot;z&quot;</span>: TextureAtlas.z,
+  <span class="token string">&quot;0&quot;</span>: TextureAtlas[<span class="token string">&quot;0&quot;</span>], <span class="token string">&quot;1&quot;</span>: TextureAtlas[<span class="token string">&quot;1&quot;</span>], <span class="token string">&quot;2&quot;</span>: TextureAtlas[<span class="token string">&quot;2&quot;</span>],
+  <span class="token string">&quot;3&quot;</span>: TextureAtlas[<span class="token string">&quot;3&quot;</span>], <span class="token string">&quot;4&quot;</span>: TextureAtlas[<span class="token string">&quot;5&quot;</span>], <span class="token string">&quot;5&quot;</span>: TextureAtlas[<span class="token string">&quot;5&quot;</span>],
+  <span class="token string">&quot;6&quot;</span>: TextureAtlas[<span class="token string">&quot;6&quot;</span>], <span class="token string">&quot;7&quot;</span>: TextureAtlas[<span class="token string">&quot;7&quot;</span>], <span class="token string">&quot;8&quot;</span>: TextureAtlas[<span class="token string">&quot;8&quot;</span>],
+  <span class="token string">&quot;9&quot;</span>: TextureAtlas[<span class="token string">&quot;9&quot;</span>],
+}
+
+<span class="token keyword">const</span> spaceWidth = 4
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> drawText(x: number, y: number, text: string, renderer: SpriteRenderer) {
+  text = text.toLowerCase()
+
+  <span class="token keyword">for</span> (<span class="token keyword">let</span> i = 0; i &lt; text.length; i++) {
+    <span class="token keyword">const</span> letter = text[i]
+    <span class="token keyword">if</span> (letter == <span class="token string">&quot; &quot;</span>) {
+      x += spaceWidth
+    } <span class="token keyword">else</span> {
+      <span class="token keyword">const</span> rectangle = glyphs[letter]
+      <span class="token keyword">if</span> (rectangle) {
+        renderer.sprite(x, y, rectangle)
+        x += rectangle.width + letterSpacing
+      }
+    }
+  }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> measureTextWidth(text: string) {
+  text = text.toLowerCase()
+
+  <span class="token keyword">let</span> width = 0
+  <span class="token keyword">for</span> (<span class="token keyword">let</span> i = 0; i &lt; text.length; i++) {
+    <span class="token keyword">const</span> letter = text[i]
+    <span class="token keyword">if</span> (letter == <span class="token string">&quot; &quot;</span>) width += spaceWidth
+    <span class="token keyword">else</span> {
+      <span class="token keyword">const</span> rectangle = glyphs[letter]
+      <span class="token keyword">if</span> (rectangle) width += rectangle.width + letterSpacing
+    }
+
+  }
+  <span class="token keyword">if</span> (text.length &gt; 0) width -= letterSpacing
+  <span class="token keyword">return</span> width
+}</pre></div></main><div class="bar"><a href="nine-patch.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#27" class="center NavigationLink">27</a> <a href="collision-detection.html" class="right NavigationLink">Next</a></div></body></html>

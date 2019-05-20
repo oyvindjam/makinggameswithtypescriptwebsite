@@ -1,0 +1,142 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Renderer | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="memory-management.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#12" class="center NavigationLink">12</a> <a href="context2d.html" class="right NavigationLink">Next</a></div><main><h1>Renderer</h1><p>We will create a renderer that can support different graphics APIs and we will implement support for both <a href="https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D" target="_blank" rel="noreferrer">CanvasRenderingContext2D</a> and <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext" target="_blank" rel="noreferrer">WebGLRenderingContext</a>.</p><h2>Graphics backend</h2><p>To support multiple backends we create an abstraction that the backends will implement.</p><div class="CodeDisplay"><header>src/GraphicsBackend.ts</header><pre><span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">interface</span> GraphicsBackend {
+  clear(red: number, green: number, blue: number): void
+  draw(dest: Rectangle, src: Rectangle, image: HTMLImageElement, mirrored: boolean): void
+  present(): void
+}</pre></div><p></p><h2>Renderer</h2><p>The game will be played on different screen resolutions, therefore we will use a rendering pipeline that will render the game correctly without the game having to know about the actual resolution.</p><div class="CodeDisplay"><header>src/Renderer.ts</header><pre><span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">interface</span> Renderer {
+  image(dest: Rectangle, texture: Rectangle,
+    image: HTMLImageElement, mirrored: boolean): void
+}</pre></div><div class="figurecontainer"><figure class="width100"><img src="rendering_pipeline.svg" alt="Coordinate system wher Y points downwards and X points right"><figcaption><div>Rendering pipeline</div></figcaption></figure></div><h2>Clipping</h2><p>Everything drawn outside the clipping area is discarded.</p><div class="CodeDisplay"><header>src/ClipRenderer.ts</header><pre><span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+<span class="token keyword">import</span> { tRectangle, tVector2 } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+<span class="token keyword">import</span> { Renderer } <span class="token keyword">from</span> <span class="token string">&quot;./Renderer&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> ClipRenderer <span class="token keyword">implements</span> Renderer {
+  isClipping = <span class="token boolean">false</span>
+  rectangle = <span class="token keyword">new</span> Rectangle(0, 0, 0, 0)
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> renderer: Renderer
+  ) { }
+
+  image(dest: Rectangle, texture: Rectangle,
+    image: HTMLImageElement, mirrored: boolean
+  ) {
+    <span class="token keyword">if</span> (this.isClipping) {
+      dest = tRectangle.get(dest.x, dest.y, dest.width, dest.height)
+      <span class="token keyword">const</span> overlap = findOverlap(dest, this.rectangle)
+      <span class="token keyword">if</span> (!overlap) <span class="token keyword">return</span>
+
+
+      <span class="token keyword">let</span> sx = (overlap.x - dest.x) / dest.width
+      <span class="token keyword">if</span> (mirrored) {
+        sx = ((dest.x + dest.width) - (overlap.x + overlap.width)) / (dest.width)
+      }
+      <span class="token keyword">const</span> sy = (overlap.y - dest.y) / dest.height
+      <span class="token keyword">const</span> sw = (dest.width - overlap.width) / dest.width
+      <span class="token keyword">const</span> sh = (dest.height - overlap.height) / dest.height
+      texture = tRectangle.get(
+        texture.x + sx * texture.width,
+        texture.y + sy * texture.height,
+        texture.width - sw * texture.width,
+        texture.height - sh * texture.height
+      )
+
+      dest = overlap
+    }
+    this.renderer.image(dest, texture, image, mirrored)
+  }
+
+  clip(rectangle: Rectangle | <span class="token boolean">null</span>) {
+    this.isClipping = rectangle != <span class="token boolean">null</span>
+    <span class="token keyword">if</span> (rectangle != <span class="token boolean">null</span>) {
+      this.rectangle.set(rectangle.x, rectangle.y,
+        rectangle.width, rectangle.height)
+    }
+  }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> findOverlap(a: Rectangle, b: Rectangle) {
+  <span class="token keyword">const</span> ap0 = tVector2.get(a.x, a.y)
+  <span class="token keyword">const</span> ap1 = tVector2.get(a.x + a.width, a.y + a.height)
+
+  <span class="token keyword">const</span> bp0 = tVector2.get(b.x, b.y)
+  <span class="token keyword">const</span> bp1 = tVector2.get(b.x + b.width, b.y + b.height)
+
+  <span class="token keyword">const</span> o0x = Math.max(ap0.x, bp0.x)
+  <span class="token keyword">const</span> o0y = Math.max(ap0.y, bp0.y)
+
+  <span class="token keyword">const</span> o1x = Math.min(ap1.x, bp1.x)
+  <span class="token keyword">const</span> o1y = Math.min(ap1.y, bp1.y)
+
+  <span class="token keyword">if</span> (o0x &gt;= o1x || o0y &gt;= o1y) <span class="token keyword">return</span> <span class="token boolean">null</span>
+
+  <span class="token keyword">return</span> tRectangle.get(o0x, o0y, o1x - o0x, o1y - o0y)
+}</pre></div><h2>Scaling</h2><p>Scales images by a scale factor.</p><div class="CodeDisplay"><header>src/ScaleRenderer.ts</header><pre><span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+<span class="token keyword">import</span> { tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+<span class="token keyword">import</span> { Renderer } <span class="token keyword">from</span> <span class="token string">&quot;./Renderer&quot;</span>;
+<span class="token keyword">import</span> { TranslationRenderer } <span class="token keyword">from</span> <span class="token string">&quot;./TranslationRenderer&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> ScaleRenderer <span class="token keyword">implements</span> Renderer {
+  scale = 1
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> renderer: TranslationRenderer
+  ) { }
+
+  image(dest: Rectangle, texture: Rectangle,
+    image: HTMLImageElement, mirrored: boolean
+  ) {
+    dest = tRectangle.get(
+      dest.x * this.scale,
+      dest.y * this.scale,
+      dest.width * this.scale,
+      dest.height * this.scale
+    )
+    this.renderer.image(dest, texture, image, mirrored)
+  }
+}
+
+</pre></div><h2>Translation</h2><p>Moves images by a X and Y offset.</p><div class="CodeDisplay"><header>src/TranslationRenderer.ts</header><pre><span class="token keyword">import</span> { Renderer } <span class="token keyword">from</span> <span class="token string">&quot;./Renderer&quot;</span>;
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+<span class="token keyword">import</span> { tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> TranslationRenderer <span class="token keyword">implements</span> Renderer {
+  xOffset = 0
+  yOffset = 0
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> renderer: Renderer
+  ) { }
+
+  image(dest: Rectangle, texture: Rectangle,
+    image: HTMLImageElement, mirrored: boolean
+  ) {
+    dest = tRectangle.get(
+      dest.x + this.xOffset,
+      dest.y + this.yOffset,
+      dest.width, dest.height
+    )
+    this.renderer.image(dest, texture, image, mirrored)
+  }
+}</pre></div><h2>Output</h2><p>As the last step in our pipeline we hand over the information to the graphics backend.</p><div class="CodeDisplay"><header>src/GraphicsRenderer.ts</header><pre><span class="token keyword">import</span> { GraphicsBackend } <span class="token keyword">from</span> <span class="token string">&quot;./GraphicsBackend&quot;</span>
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+<span class="token keyword">import</span> { Renderer } <span class="token keyword">from</span> <span class="token string">&quot;./Renderer&quot;</span>;
+<span class="token keyword">import</span> { tRectangle } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> GraphicsRenderer <span class="token keyword">implements</span> Renderer {
+
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword"><span class="token keyword">private</span></span> graphics: GraphicsBackend
+  ) { }
+
+  image(dest: Rectangle, src: Rectangle,
+    image: HTMLImageElement, mirrored: boolean
+  ) {
+    dest = tRectangle.get(Math.round(dest.x), Math.round(dest.y),
+      Math.round(dest.width), Math.round(dest.height))
+    this.graphics.draw(dest, src, image, mirrored)
+  }
+}</pre></div></main><div class="bar"><a href="memory-management.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#12" class="center NavigationLink">12</a> <a href="context2d.html" class="right NavigationLink">Next</a></div></body></html>

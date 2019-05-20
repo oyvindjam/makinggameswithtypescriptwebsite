@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Screen shake | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="jumping.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#30" class="center NavigationLink">30</a> <a href="weapons.html" class="right NavigationLink">Next</a></div><main><h1>Screen shake</h1><p>Screen shake is a powerful effect to indicate impact or explosions since the entire screen will shake. This effect can be simulated by rendering rendering everything at random offsets and rotating at random angles</p><div class="CodeDisplay"><header>src/ScreenShake.ts</header><pre><span class="token keyword">export</span> <span class="token keyword">class</span> ScreenShaker {
+  x = 0
+  y = 0
+
+  <span class="token keyword"><span class="token keyword">private</span></span> trauma = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> shakeTime = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> timeSinceAddedTrauma = 0
+  <span class="token keyword"><span class="token keyword">private</span></span> shakeInterval = 0.03
+
+
+  addTrauma(trauma: number) {
+    this.trauma += trauma
+    <span class="token keyword">if</span> (this.trauma &gt; 1) this.trauma = 1
+    this.timeSinceAddedTrauma = 0
+  }
+
+  getTrauma() {
+    <span class="token keyword">return</span> this.trauma
+  }
+
+  update(delta: number) {
+    this.shakeTime += this.shakeInterval
+    <span class="token keyword">if</span> (this.shakeTime &gt;= this.shakeInterval) {
+      this.shakeTime = 0
+    } 
+    <span class="token keyword">else</span> <span class="token keyword">return</span>
+
+    <span class="token keyword">if</span> (this.trauma &gt;= 1) this.trauma = 1
+    <span class="token keyword">const</span> maxOffset = 2
+
+    <span class="token keyword">const</span> shake = Math.pow(this.trauma, 2)
+    this.x = Math.random() * maxOffset * shake
+    this.y = Math.random() * maxOffset * shake
+
+    this.x -= maxOffset / 2
+    this.y -= maxOffset / 2
+
+    this.timeSinceAddedTrauma += delta
+    this.trauma -= 0.4 * this.timeSinceAddedTrauma
+    
+    <span class="token keyword">if</span> (this.trauma &lt; 0) this.trauma = 0
+  }
+}</pre></div><h2>Links</h2><ul><li><a href="https://www.youtube.com/watch?v=AJdEqssNZ-U" target="_blank" rel="noreferrer">Jan Willem Nijman - Vlambeer - &quot;The art of screenshake&quot;</a></li><li><a href="https://www.youtube.com/watch?v=tu-Qe66AvtY" target="_blank" rel="noreferrer">Math for Game Programmers: Juicing Your Cameras With Math</a></li><li><a href="https://www.youtube.com/watch?v=Fy0aCDmgnxg" target="_blank" rel="noreferrer">Juice it or lose it - a talk by Martin Jonasson &amp; Petri Purho</a></li></ul></main><div class="bar"><a href="jumping.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#30" class="center NavigationLink">30</a> <a href="weapons.html" class="right NavigationLink">Next</a></div></body></html>

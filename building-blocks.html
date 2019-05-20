@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Building blocks | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="webpack.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#10" class="center NavigationLink">10</a> <a href="memory-management.html" class="right NavigationLink">Next</a></div><main><h1>Building blocks</h1><p>We create some abstractions that we use throughout the book.</p><h2>Vectors</h2><p>Vectors are convenient for representing both positions and directions.</p><div class="CodeDisplay"><header>src/Vector2.ts</header><pre><span class="token keyword">import</span> { tVector2 } <span class="token keyword">from</span> <span class="token string">&quot;./temporaryObjects&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Vector2 {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">public</span> x: number = 0,
+    <span class="token keyword">public</span> y: number = 0
+  ) { }
+
+  length() {
+    <span class="token keyword">return</span> Math.sqrt(this.x * this.x + this.y * this.y)
+  }
+
+  normalize() {
+    <span class="token keyword">const</span> length = this.length()
+    <span class="token keyword">if</span> (length == 0) <span class="token keyword">return</span>
+    this.x /= length
+    this.y /= length
+  }
+
+  set(x: number, y: number) {
+    this.x = x
+    this.y = y
+  }
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> dot(a: Vector2, b: Vector2) {
+  <span class="token keyword">return</span> a.x*b.x+a.y*b.y
+}
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> subtract(a: Vector2, b: Vector2) {
+  <span class="token keyword">return</span> tVector2.get(a.x-b.x, a.y-b.y)
+}</pre></div><h2>Rectangles</h2><p>The game is mostly built up by rectangles.</p><div class="CodeDisplay"><header>src/Rectangle.ts</header><pre><span class="token keyword">export</span> <span class="token keyword">class</span> Rectangle {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">public</span> x: number,
+    <span class="token keyword">public</span> y: number,
+    <span class="token keyword">public</span> width: number,
+    <span class="token keyword">public</span> height: number
+  ) { }
+
+  set(x: number, y: number, width: number, height: number) {
+    this.x = x
+    this.y = y
+    this.width = width
+    this.height = height
+  }
+}</pre></div><h2>Lines</h2><p>A line segment between two points.</p><div class="CodeDisplay"><header>src/Line.ts</header><pre><span class="token keyword">import</span> { Vector2 } <span class="token keyword">from</span> <span class="token string">&quot;./Vector2&quot;</span>;
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> Line {
+  <span class="token keyword">constructor</span>(
+    <span class="token keyword">public</span> p0: Vector2,
+    <span class="token keyword">public</span> p1: Vector2
+  ) { }
+}</pre></div></main><div class="bar"><a href="webpack.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#10" class="center NavigationLink">10</a> <a href="memory-management.html" class="right NavigationLink">Next</a></div></body></html>

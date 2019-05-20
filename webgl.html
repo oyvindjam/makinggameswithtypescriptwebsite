@@ -1,0 +1,198 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="Description" content="Implementing renderer using WebGL"><title>WebGL | Making games with TypeScript</title><link rel="stylesheet" type="text/css" href="style.css"><link rel="shortcut icon" href="/favicon.ico"><script>;</script></head><body><div class="bar"><a href="context2d.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#14" class="center NavigationLink">14</a> <a href="controls.html" class="right NavigationLink">Next</a></div><main><h1>WebGL</h1><p>WebGL is a low level graphics API for hardware accelerated rendering.</p><h2>Shaders</h2><p>WebGL has a programmable rendering pipeline where we can control certain stages with shaders.</p><h3>Vertex shader</h3><p>Processes vertices and passes on information to the fragment shader. We use the vertex shader to pass on texture coordinates to the fragment shader.</p><p>WebGL wants vertex coordinates to be in [-1, 1] range where the point (0, 0) is in the center.</p><div class="figurecontainer"><figure class="width100 maxWidth400"><img src="coordinate_system_webgl.svg" alt="Coordinate where X goes from -1 to 1 and Y goes from -1 to 1"><figcaption><div>Vertex coordinates</div></figcaption></figure></div><h3>Fragment shader</h3><p>Processes fragments and outputs colors for those fragments. We use the texture coordinates to output color values from textures.</p><p>Texture coordinates are in the range [0, 1] where the point (0, 0) is in the bottom left corner.</p><div class="figurecontainer"><figure class="width100 maxWidth400"><img src="coordinate_system_texture.svg" alt="Coordinate where U goes from 0 to 1 (X axis) and V goes from 0 to 1 (Y axis)"><figcaption><div>Texture coordinates</div></figcaption></figure></div><div class="CodeDisplay"><header>src/GraphicsWebGL.ts</header><pre><span class="token keyword">import</span> { GraphicsBackend } <span class="token keyword">from</span> <span class="token string">&quot;./GraphicsBackend&quot;</span>
+<span class="token keyword">import</span> { Rectangle } <span class="token keyword">from</span> <span class="token string">&quot;./Rectangle&quot;</span>;
+
+<span class="token keyword">const</span> vertexShaderSource = <span class="token string">`</span>
+<span class="token string">attribute vec2 position;</span>
+<span class="token string">attribute vec2 texturePosition;</span>
+<span class="token string">varying vec2 texturePositionF;</span>
+<span class="token string"></span>
+<span class="token string">void main() {</span>
+<span class="token string">    gl_Position = vec4(position.x, position.y, 0, 1);</span>
+<span class="token string">    texturePositionF = texturePosition;</span>
+<span class="token string">}</span>
+<span class="token string">`</span>
+
+<span class="token keyword">const</span> fragmentShaderSource = <span class="token string">`</span>
+<span class="token string">precision mediump float;</span>
+<span class="token string">uniform sampler2D textureSampler;</span>
+<span class="token string">varying vec2 texturePositionF;</span>
+<span class="token string"></span>
+<span class="token string">void main() {</span>
+<span class="token string">    vec4 color = texture2D(textureSampler, texturePositionF);</span>
+<span class="token string">    gl_FragColor = color;</span>
+<span class="token string">}</span>
+<span class="token string">`</span>
+
+<span class="token keyword">const</span> bytesInFloat = 4
+
+<span class="token keyword">export</span> <span class="token keyword">class</span> GraphicsWebGL <span class="token keyword">implements</span> GraphicsBackend {
+
+  <span class="token keyword"><span class="token keyword">private</span></span> <span class="token keyword">readonly</span> imageToWebGLTexture = <span class="token keyword">new</span> Map&lt;HTMLImageElement, WebGLTexture&gt;()
+  <span class="token keyword">readonly</span> buffer = <span class="token keyword">new</span> Float32Array(24 * 3000)
+
+  <span class="token keyword"><span class="token keyword">private</span></span> gl: WebGLRenderingContext
+
+  <span class="token keyword">constructor</span>(
+    canvas: HTMLCanvasElement
+  ) {
+    <span class="token keyword">const</span> gl = canvas.getContext(<span class="token string">&quot;webgl&quot;</span>, {
+      alpha: <span class="token boolean">false</span>,
+      antialias: <span class="token boolean">false</span>, 
+      powerPreference: <span class="token string">&quot;high-performance&quot;</span>,
+      stencil: <span class="token boolean">false</span>,
+      preserveDrawingBuffer: <span class="token boolean">false</span>
+    })
+    <span class="token keyword">if</span> (gl == <span class="token boolean">null</span>) <span class="token keyword">throw</span> <span class="token keyword">new</span> Error(<span class="token string">&quot;Could not get webGL context&quot;</span>)
+    this.gl = gl
+
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+
+    <span class="token keyword">const</span> vertexShader = createShader(vertexShaderSource, gl.VERTEX_SHADER, gl)
+    <span class="token keyword">const</span> fragmentShader = createShader(fragmentShaderSource, gl.FRAGMENT_SHADER, gl)
+    <span class="token keyword">const</span> program = createProgram([vertexShader, fragmentShader], gl)
+    gl.useProgram(program)
+    this.gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
+
+    <span class="token keyword">const</span> positionSize = 2 * bytesInFloat
+    <span class="token keyword">const</span> texturePositionSize = 2 * bytesInFloat
+    <span class="token keyword">const</span> stride = positionSize + texturePositionSize
+    <span class="token keyword">let</span> offset = 0
+
+    <span class="token keyword">const</span> positionLocation = gl.getAttribLocation(program, <span class="token string">&quot;position&quot;</span>)
+    gl.enableVertexAttribArray(positionLocation)
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, <span class="token boolean">false</span>, stride, offset)
+    offset += positionSize
+
+    <span class="token keyword">const</span> texturePositionLocation = gl.getAttribLocation(program, <span class="token string">&quot;texturePosition&quot;</span>)
+    gl.enableVertexAttribArray(texturePositionLocation)
+    gl.vertexAttribPointer(texturePositionLocation, 2, gl.FLOAT, <span class="token boolean">false</span>, stride, offset)
+    offset += texturePositionSize
+  }
+
+  clear(red: number, green: number, blue: number) {
+    this.gl.clearColor(red / 255, green / 255, blue / 255, 1)
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT)
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> bufferIndex = 0
+
+  present() {
+    <span class="token keyword">if</span> (this.bufferIndex &gt; 0) {
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, this.buffer.subarray(0, this.bufferIndex), this.gl.DYNAMIC_DRAW)
+      this.gl.drawArrays(this.gl.TRIANGLES, 0, this.bufferIndex / 4)
+    }
+    this.bufferIndex = 0
+  }
+
+  <span class="token keyword"><span class="token keyword">private</span></span> getTexture(image: HTMLImageElement) {
+    <span class="token keyword">const</span> storedTexture = this.imageToWebGLTexture.get(image)
+    <span class="token keyword">if</span> (storedTexture != <span class="token boolean">null</span>) <span class="token keyword">return</span> storedTexture
+
+    <span class="token keyword">const</span> texture = this.createTexture(image)
+    <span class="token keyword">if</span> (texture) this.imageToWebGLTexture.set(image, texture)
+    <span class="token keyword">return</span> texture
+  }
+
+  draw(dest: Rectangle, src: Rectangle, image: HTMLImageElement, mirrored: boolean) {
+    <span class="token keyword">if</span> (this.bufferIndex + 24 &gt;= this.buffer.length) <span class="token keyword">return</span>
+
+    <span class="token keyword">const</span> glTexture = this.getTexture(image)
+    <span class="token keyword">if</span> (!glTexture) <span class="token keyword">return</span>
+
+    <span class="token keyword">if</span> (mirrored) {
+      src.x += src.width
+      src.width *= -1
+    }
+
+    this.gl.bindTexture(this.gl.TEXTURE_2D, glTexture)
+
+    <span class="token keyword">let</span> x = dest.x
+    <span class="token keyword">let</span> width = dest.width
+    <span class="token keyword">let</span> y = dest.y
+    <span class="token keyword">let</span> height = dest.height
+
+    x = 2 * x / this.gl.canvas.width - 1
+    width = (width / this.gl.canvas.width) * 2
+
+    y = -2 * y / this.gl.canvas.height + 1
+    height = -(height / this.gl.canvas.height) * 2
+
+    this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height)
+
+    <span class="token keyword">const</span> u0 = src.x / image.width
+    <span class="token keyword">const</span> u1 = u0 + src.width / image.width
+    <span class="token keyword">const</span> v0 = src.y / image.height
+    <span class="token keyword">const</span> v1 = v0 + src.height / image.height
+
+    this.buffer[this.bufferIndex++] = x
+    this.buffer[this.bufferIndex++] = y
+    this.buffer[this.bufferIndex++] = u0
+    this.buffer[this.bufferIndex++] = v0
+    this.buffer[this.bufferIndex++] = x + width
+    this.buffer[this.bufferIndex++] = y + height
+    this.buffer[this.bufferIndex++] = u1
+    this.buffer[this.bufferIndex++] = v1
+    this.buffer[this.bufferIndex++] = x
+    this.buffer[this.bufferIndex++] = y + height
+    this.buffer[this.bufferIndex++] = u0
+    this.buffer[this.bufferIndex++] = v1
+    this.buffer[this.bufferIndex++] = x
+    this.buffer[this.bufferIndex++] = y
+    this.buffer[this.bufferIndex++] = u0
+    this.buffer[this.bufferIndex++] = v0
+    this.buffer[this.bufferIndex++] = x + width
+    this.buffer[this.bufferIndex++] = y + height
+    this.buffer[this.bufferIndex++] = u1
+    this.buffer[this.bufferIndex++] = v1
+    this.buffer[this.bufferIndex++] = x + width
+    this.buffer[this.bufferIndex++] = y
+    this.buffer[this.bufferIndex++] = u1
+    this.buffer[this.bufferIndex++] = v0
+  }
+
+
+  <span class="token keyword"><span class="token keyword">private</span></span> createTexture(image: HTMLImageElement) {
+    <span class="token keyword">if</span> (!image.complete) <span class="token keyword">return</span> <span class="token boolean">null</span>
+    <span class="token keyword">const</span> gl = this.gl
+    <span class="token keyword">const</span> glTexture = gl.createTexture()
+    <span class="token keyword">if</span> (glTexture == <span class="token boolean">null</span>) <span class="token keyword">return</span> <span class="token boolean">null</span>
+
+    gl.bindTexture(gl.TEXTURE_2D, glTexture)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
+      gl.UNSIGNED_BYTE, image)
+    <span class="token keyword">const</span> wrap = gl.CLAMP_TO_EDGE
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap)
+    <span class="token keyword">const</span> filter = gl.NEAREST
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter)
+
+    <span class="token keyword">return</span> glTexture
+  }
+}
+
+<span class="token keyword">function</span> createShader(source: string, type: number, gl: WebGLRenderingContext) {
+  <span class="token keyword">const</span> shader = gl.createShader(type)
+  <span class="token keyword">if</span> (!shader) <span class="token keyword">throw</span> <span class="token keyword">new</span> Error(<span class="token string">&quot;Could not create shader&quot;</span>)
+  gl.shaderSource(shader, source)
+  gl.compileShader(shader)
+  <span class="token keyword">if</span> (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    <span class="token keyword">let</span> message = gl.getShaderInfoLog(shader) || <span class="token string">&quot;&quot;</span>
+    <span class="token keyword">throw</span> <span class="token keyword">new</span> Error(message)
+  }
+  <span class="token keyword">return</span> shader
+}
+
+<span class="token keyword">function</span> createProgram(shaders: WebGLShader[], gl: WebGLRenderingContext) {
+  <span class="token keyword">const</span> program = gl.createProgram()
+  <span class="token keyword">if</span> (!program) <span class="token keyword">throw</span> <span class="token keyword">new</span> Error(<span class="token string">&quot;Could not create program&quot;</span>)
+  <span class="token keyword">for</span> (<span class="token keyword">const</span> shader <span class="token keyword">of</span> shaders) gl.attachShader(program, shader)
+  gl.linkProgram(program)
+  <span class="token keyword">if</span> (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    <span class="token keyword">const</span> message = gl.getProgramInfoLog(program) || <span class="token string">&quot;&quot;</span>
+    <span class="token keyword">throw</span> <span class="token keyword">new</span> Error(message)
+  }
+  <span class="token keyword">return</span> program
+}</pre></div><h2>Links</h2><ul><li><a href="https://www.khronos.org/files/webgl/webgl-reference-card-1_0.pdf" target="_blank" rel="noreferrer">WebGL 1.0 API Quick Reference Card</a></li><li><a href="https://webglfundamentals.org/" target="_blank" rel="noreferrer">WebGL Fundamentals</a></li><li><a href="https://www.khronos.org/webgl/" target="_blank" rel="noreferrer">WebGL Overview - The Khronos Group Inc</a></li></ul></main><div class="bar"><a href="context2d.html" class="left NavigationLink">Previous</a> <a href="tableofcontents.html#14" class="center NavigationLink">14</a> <a href="controls.html" class="right NavigationLink">Next</a></div></body></html>
